@@ -9,6 +9,7 @@
 #include "video.h"
 #include "config.h"
 #include "system.h"
+#include "debugger.h"
 
 #define MAX_BINDS 4
 #define TRIG_THRESHOLD (30 * 256)
@@ -253,6 +254,8 @@ static int inputEventFilter(void *data, SDL_Event *event)
 		default:
 			break;
 	}
+
+	debuggerProcessEvent(event);
 
 	return 0;
 }
@@ -572,10 +575,20 @@ static inline void inputUpdateMouse(void)
 	mouseX = mx;
 	mouseY = my;
 
+	const s32 mouseFocus = (SDL_GetMouseFocus() == videoGetWindowHandle());
 	if (!mouseLocked && (mouseButtons & SDL_BUTTON_LMASK)) {
-		inputLockMouse(1);
+		if (mouseFocus) {
+			inputLockMouse(1);
+		}
 	} else if (mouseLocked && inputKeyPressed(VK_ESCAPE)) {
 		inputLockMouse(0);
+	}
+
+	if (!mouseFocus) {
+		mouseDX = 0;
+		mouseDY = 0;
+		mouseWheel = 0;
+		mouseButtons = 0;
 	}
 }
 

@@ -25,6 +25,7 @@
 #include "audio.h"
 #include "input.h"
 #include "mixer.h"
+#include "debugger.h"
 
 /*
  * private typedefs and defines
@@ -231,6 +232,7 @@ void schedSubmitTask(OSSched *sc, OSScTask *t)
 
 void schedStartFrame(OSSched *sc)
 {
+	debuggerStartFrame();
 	videoStartFrame();
 }
 
@@ -280,6 +282,8 @@ void schedEndFrame(OSSched *sc)
 		viHandleRetrace();
 	}
 
+	debuggerFrame();
+
 	inputUpdate();
 
 	joyStartReadData(&g_PiMesgQueue);
@@ -289,6 +293,8 @@ void schedEndFrame(OSSched *sc)
 	sndHandleRetrace();
 	schedAudioFrame(sc);
 	schedRenderCrashPeriodically(sc->frameCount);
+
+	debuggerEndFrame();
 	videoEndFrame();
 
 	if (g_MainIsBooting == 0) {

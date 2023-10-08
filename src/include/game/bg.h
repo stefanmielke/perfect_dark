@@ -22,7 +22,7 @@ void bgLoadFile(void *memaddr, u32 offset, u32 len);
 s32 bgGetStageIndex(s32 stagenum);
 f32 bgCalculatePortalSurfaceArea(s32 portal);
 u8 bgCalculatePortalAlpha(s32 portal);
-u32 not(u32 arg);
+u32 bgNot(u32 arg);
 u32 bgXorBabebabe(u32 value);
 void bgReset(s32 stagenum);
 void bgBuildTables(s32 stagenum);

@@ -291,7 +291,6 @@ u32 mempGetPoolFree(u8 poolnum, u32 bank)
 	return pool->rightpos - pool->leftpos;
 }
 
-#ifdef DEBUG
 u32 mempGetPoolSize(u8 poolnum, u32 bank)
 {
 	struct memorypool *pool;
@@ -304,7 +303,6 @@ u32 mempGetPoolSize(u8 poolnum, u32 bank)
 
 	return pool->rightpos - pool->start;
 }
-#endif
 
 #if VERSION < VERSION_NTSC_1_0
 void *mempAllocFromPackedWord(u32 word)

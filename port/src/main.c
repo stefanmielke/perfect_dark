@@ -93,6 +93,7 @@ int main(int argc, const char **argv)
 	inputInit();
 	audioInit();
 	romdataInit();
+	debuggerInit();
 
 	gameLoadConfig();
 

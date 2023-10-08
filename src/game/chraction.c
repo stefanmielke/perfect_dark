@@ -15320,17 +15320,21 @@ bool chrMoveToPos(struct chrdata *chr, struct coord *pos, RoomNum *rooms, f32 an
 		propDeregisterRooms(chr->prop);
 		roomsCopy(rooms2, chr->prop->rooms);
 		chr0f0220ac(chr);
-		modelSetRootPosition(chr->model, &pos2);
 
-		nodetype = chr->model->definition->rootnode->type;
-
-		if ((nodetype & 0xff) == MODELNODETYPE_CHRINFO) {
-			rwdata = modelGetNodeRwData(chr->model, chr->model->definition->rootnode);
-			rwdata->chrinfo.ground = ground;
+		if (chr->model) {
+			modelSetRootPosition(chr->model, &pos2);
+			nodetype = chr->model->definition->rootnode->type;
+			if ((nodetype & 0xff) == MODELNODETYPE_CHRINFO) {
+				rwdata = modelGetNodeRwData(chr->model, chr->model->definition->rootnode);
+				rwdata->chrinfo.ground = ground;
+			}
 		}
 
 		chr->chrflags |= CHRCFLAG_FORCETOGROUND;
-		chrSetLookAngle(chr, angle);
+
+		if (chr->model || chr->aibot) {
+			chrSetLookAngle(chr, angle);
+		}
 
 		if (chr->prop->type == PROPTYPE_PLAYER) {
 			player = g_Vars.players[playermgrGetPlayerNumByProp(chr->prop)];

@@ -86,7 +86,12 @@ extern void     bzero(void *, size_t);
 
 /* Printf */
 
+#ifdef PLATFORM_N64
 extern int		sprintf(char *s, const char *fmt, ...);
+#else
+#include <stdio.h>
+#endif
+
 extern void		osSyncPrintf(const char *fmt, ...);
 
 

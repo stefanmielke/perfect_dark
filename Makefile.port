@@ -208,7 +208,7 @@ C_FILES := $(C_FILES) \
   src/lib/vi.c \
   src/textureconfig.c
 
-CXX_FILES :=$(shell find port -name '*.cpp')
+CXX_FILES := $(shell find port -name '*.cpp')
 
 C_O_FILES := $(patsubst %.c, $(B_DIR)/%.o, $(C_FILES))
 CXX_O_FILES := $(patsubst %.cpp, $(B_DIR)/%.o, $(CXX_FILES))
@@ -221,7 +221,8 @@ INCLUDES = \
   -I src/include \
   -I src/generated/$(ROMID) \
   -I src/lib/ultra/audio \
-  -I port/include
+  -I port/include \
+  -I port/src/imgui
 
 TOOLCHAIN ?=
 CC := $(TOOLCHAIN)gcc -std=c11

@@ -72,6 +72,7 @@
 #include "lib/str.h"
 #include "data.h"
 #include "types.h"
+#include "debugger.h"
 
 extern u8 *g_MempHeap;
 extern u32 g_MempHeapSize;
@@ -527,6 +528,15 @@ void mainTick(void)
 		joyDebugJoy();
 		schedSetCrashEnable2(false);
 
+		if (g_DebuggerTimePasses) {
+			g_MainGameLogicEnabled = true;
+		} else {
+			g_MainGameLogicEnabled = (g_DebuggerFrameAdvance > 0);
+			if (g_MainGameLogicEnabled) {
+				--g_DebuggerFrameAdvance;
+			}
+		}
+
 		if (g_MainGameLogicEnabled) {
 			gdl = gdlstart = gfxGetMasterDisplayList();
 
@@ -564,11 +574,10 @@ void mainTick(void)
 		if (g_MainGameLogicEnabled) {
 			gfxSwapBuffers();
 			viUpdateMode();
+			rdpCreateTask(gdlstart, gdl, 0, (s32) &msg);
+			memaPrint();
+			profileSetMarker(PROFILE_MAINTICK_END);
 		}
-
-		rdpCreateTask(gdlstart, gdl, 0, (s32) &msg);
-		memaPrint();
-		profileSetMarker(PROFILE_MAINTICK_END);
 	}
 }
 
