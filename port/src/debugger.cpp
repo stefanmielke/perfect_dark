@@ -63,6 +63,7 @@ static bool expandLatch = false;
 static bool expandValue = false;
 
 static bool showPropInfo = false;
+static bool showActiveProps = true;
 
 static void *focusPtr = nullptr;
 
@@ -723,10 +724,12 @@ extern "C" void debuggerFrame(void)
 	}
 
 	if (g_Vars.activeprops && g_Vars.activeprops != g_Vars.activepropstail) {
-		if (ImGui::CollapsingHeader("Active props")) {
+		if (ImGui::CollapsingHeader("Props")) {
 			ImGui::Text("Visible: %d", g_Vars.numonscreenprops);
 
 			ImGui::Separator();
+
+			ImGui::Checkbox("Active props only", &showActiveProps);
 
 			ImGui::Combo("Filter prop", &propFilter, propTypes, ARRAYCOUNT(propTypes));
 			ImGui::Combo("Filter obj", &objFilter, objTypes, ARRAYCOUNT(objTypes));
@@ -743,13 +746,7 @@ extern "C" void debuggerFrame(void)
 
 			ImGui::Separator();
 
-			struct prop *prop;
-			struct prop *next;
-			bool done;
-			prop = g_Vars.activeprops;
-			do {
-				next = prop->next;
-				done = next == g_Vars.pausedprops;
+			auto showProp = [&](struct prop *prop) {
 				if (prop && (!propFilter || propFilter == prop->type)) {
 					if (!objFilter || (prop->obj && prop->obj->type == objFilter)) {
 						const bool focus = (focusPtr && ((void *)prop == focusPtr || (void *)prop->obj == focusPtr));
@@ -768,8 +765,27 @@ extern "C" void debuggerFrame(void)
 						}
 					}
 				}
-				prop = next;
-			} while (!done);
+			};
+
+			if (showActiveProps) {
+				// show the active props list
+				struct prop *prop;
+				struct prop *next;
+				bool done;
+				prop = g_Vars.activeprops;
+				do {
+					next = prop->next;
+					done = next == g_Vars.pausedprops;
+					showProp(prop);
+					prop = next;
+				} while (!done);
+			} else {
+				// show all props
+				for (s32 i = 0; i < g_Vars.maxprops; ++i) {
+					struct prop *prop = &g_Vars.props[i];
+					showProp(prop);
+				}
+			}
 		}
 	}
 
