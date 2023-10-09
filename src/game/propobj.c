@@ -77,6 +77,10 @@
 #include "textures.h"
 #include "types.h"
 #include "string.h"
+#ifndef PLATFORM_N64
+#include "system.h"
+#include "debugger.h"
+#endif
 
 void rng2SetSeed(u32 seed);
 
@@ -6694,6 +6698,10 @@ s32 projectileTick(struct defaultobj *obj, bool *embedded)
 						|| prop->pos.y < -20000.0f || prop->pos.y > 32000.0f
 						|| prop->pos.x < -32000.0f || prop->pos.x > 32000.0f
 						|| prop->pos.z < -32000.0f || prop->pos.z > 32000.0f) {
+					if (g_DebuggerActive) {
+						sysLogPrintf(LOG_WARNING, "DBG: prop %p (%02x) obj %p (%02x) at (%.2f, %.2f, %.2f) expired",
+							prop, prop->type, obj, obj->type, prop->pos.x, prop->pos.y, prop->pos.z);
+					}
 					obj->hidden |= OBJHFLAG_DELETING;
 				}
 
@@ -10864,6 +10872,16 @@ u32 objTick(struct prop *prop)
 	u32 cmdindex;
 	u32 padnum;
 	struct defaultobj *newparent;
+
+	if (g_DebuggerActive) {
+		if (obj->type != OBJTYPE_HOVERCAR && prop->pos.y <= -20000.f) {
+			if ((obj->hidden & OBJHFLAG_FALLOUT) == 0) {
+				sysLogPrintf(LOG_WARNING, "DBG: prop %p (%02x) obj %p (%02x) at (%.2f, %.2f, %.2f) fell out of world",
+					prop, prop->type, obj, obj->type, prop->pos.x, prop->pos.y, prop->pos.z);
+				obj->hidden |= OBJHFLAG_FALLOUT;
+			}
+		}
+	}
 
 	if (prop->timetoregen > 0) {
 		// Prop is taken/unavailable

@@ -3164,6 +3164,7 @@
 #define OBJHFLAG_BLOCKEDPATH        0x02000000
 #define OBJHFLAG_MOUNTED            0x04000000 // for hoverbike
 #define OBJHFLAG_GRABBED            0x08000000
+#define OBJHFLAG_FALLOUT            0x10000000
 
 // obj->hidden2
 #define OBJH2FLAG_HASOPA       0x01 // obj has opaque polygons (ie. most objects)
