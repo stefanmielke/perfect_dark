@@ -7,14 +7,24 @@
 extern "C"
 {
 
+#include <PR/ultratypes.h>
+#include <PR/gbi.h>
+#include <gbiex.h>
 #include "data.h"
 #include "bss.h"
 #include "constants.h"
 #include "game/stagetable.h"
+#include "game/chr.h"
 #include "game/chraction.h"
 #include "game/bg.h"
+#include "game/player.h"
+#include "game/propobj.h"
+#include "game/prop.h"
+#include "game/sight.h"
+#include "game/game_1531a0.h"
 #include "lib/memp.h"
 #include "lib/mema.h"
+#include "lib/vi.h"
 #include "video.h"
 #include "input.h"
 #include "system.h"
@@ -52,7 +62,11 @@ static const char *objTypes[0x3c];
 static bool expandLatch = false;
 static bool expandValue = false;
 
+static bool showPropInfo = false;
+
 static void *focusPtr = nullptr;
+
+static struct prop *lookatprop = nullptr;
 
 static inline const char *fmtCoord(const coord& crd)
 {
@@ -297,6 +311,133 @@ extern "C" void debuggerStartFrame(void)
 	ImGui::NewFrame();
 }
 
+extern "C" void debuggerUpdatePropInfo(s32 clear)
+{
+	if (showPropInfo) {
+		if (clear) {
+			lookatprop = nullptr;
+		} else {
+			lookatprop = propFindAimingAt(HAND_RIGHT, false, FINDPROPCONTEXT_QUERY);
+		}
+	} else {
+		lookatprop = nullptr;
+	}
+}
+
+extern "C" Gfx *debuggerDrawPropInfo(Gfx *gdl)
+{
+	if (!showPropInfo || !lookatprop) {
+		return gdl;
+	}
+
+	struct prop *prop = lookatprop;
+
+	char text[256] = { 0 };
+	s32 x = 4;
+	s32 y = 4;
+
+	gSPSetExtraGeometryModeEXT(gdl++, G_ASPECT_LEFT_EXT);
+	gdl = text0f153628(gdl);
+	gdl = text0f153838(gdl);
+
+	std::snprintf(text, sizeof(text), "looking at\nprop %p: %s (%02x)\n", prop, fmtPropType(prop->type), prop->type);
+	gdl = textRender(gdl, &x, &y, text, g_CharsHandelGothicXs, g_FontHandelGothicXs, 0x00ff00a0, 0x000000a0, viGetWidth(), viGetHeight(), 0, 0);
+
+	if (prop->obj) {
+		std::snprintf(text, sizeof(text), "obj  %p: %s (%02x) mdl %04x\n", prop->obj, fmtObjType(prop->obj->type), prop->obj->type, prop->obj->modelnum);
+		gdl = textRender(gdl, &x, &y, text, g_CharsHandelGothicXs, g_FontHandelGothicXs, 0x00ff00a0, 0x000000a0, viGetWidth(), viGetHeight(), 0, 0);
+	}
+
+	if (prop->chr && (prop->type == PROPTYPE_CHR || prop->type == PROPTYPE_PLAYER || prop->type == PROPTYPE_EYESPY)) {
+		std::snprintf(text, sizeof(text), "chr  %p: num %04x\n", prop->chr, prop->chr->chrnum);
+		gdl = textRender(gdl, &x, &y, text, g_CharsHandelGothicXs, g_FontHandelGothicXs, 0x00ff00a0, 0x000000a0, viGetWidth(), viGetHeight(), 0, 0);
+	}
+
+	gdl = text0f153780(gdl);
+	gSPClearExtraGeometryModeEXT(gdl++, G_ASPECT_MODE_EXT);
+
+	return gdl;
+}
+
+static inline void debuggerTeleportPlayer(struct coord& crd)
+{
+	sysLogPrintf(LOG_NOTE, "DBG: teleporting player 1 to (%.2f, %.2f, %.2f)", crd.x, crd.y, crd.z);
+
+	if (!g_Vars.players[0] || !g_Vars.players[0]->prop) {
+		sysLogPrintf(LOG_NOTE, "DBG: no player 1 or player 1 has no prop");
+		return;
+	}
+
+	struct chrdata *playerchr = g_Vars.players[0]->prop->chr;
+	if (!playerchr) {
+		sysLogPrintf(LOG_NOTE, "DBG: player 1 has no chr");
+		return;
+	}
+
+	RoomNum inrooms[9] = { -1 };
+	RoomNum aboverooms[9] = { -1 };
+
+	bgFindRoomsByPos(&crd, inrooms, aboverooms, 8, NULL);
+
+	RoomNum *rooms = NULL;
+	if (inrooms[0] != -1) {
+		rooms = inrooms;
+	} else if (aboverooms[0] != -1) {
+		rooms = aboverooms;
+	}
+
+	if (rooms) {
+		const u32 old = playerchr->hidden;
+		playerchr->hidden |= CHRHFLAG_WARPONSCREEN;
+		chrMoveToPos(playerchr, &crd, rooms, g_Vars.players[0]->vv_theta, true);
+		if ((old & CHRHFLAG_WARPONSCREEN) == 0) {
+			playerchr->hidden &= ~CHRHFLAG_WARPONSCREEN;
+		}
+	} else {
+		sysLogPrintf(LOG_NOTE, "DBG: could not find any rooms at teleport destination");
+	}
+}
+
+static inline void debuggerKillChr(struct chrdata *chr)
+{
+	struct coord dmgdir = { 0.f, 0.f, 0.f };
+	chrDamageByImpact(chr, 10000.f, &dmgdir, nullptr, nullptr, HITPART_GENERAL);
+}
+
+static inline void debuggerKillPlayer(void)
+{
+	sysLogPrintf(LOG_NOTE, "DBG: killing player 1");
+
+	if (!g_Vars.players[0] || !g_Vars.players[0]->prop) {
+		sysLogPrintf(LOG_NOTE, "DBG: no player 1 or player 1 has no prop");
+		return;
+	}
+
+	struct chrdata *playerchr = g_Vars.players[0]->prop->chr;
+	if (!playerchr) {
+		sysLogPrintf(LOG_NOTE, "DBG: player 1 has no chr");
+		return;
+	}
+
+	debuggerKillChr(playerchr);
+}
+
+static inline void debuggerHealPlayer(void)
+{
+	sysLogPrintf(LOG_NOTE, "DBG: healing player 1");
+
+	if (!g_Vars.players[0] || !g_Vars.players[0]->prop) {
+		sysLogPrintf(LOG_NOTE, "DBG: no player 1 or player 1 has no prop");
+		return;
+	}
+
+	player *prev = g_Vars.currentplayer;
+	g_Vars.currentplayer = g_Vars.players[0];
+	playerDisplayHealth();
+	g_Vars.currentplayer->bondhealth = 1.f;
+	g_Vars.currentplayer = prev;
+}
+
 static inline void describeHand(hand *hand)
 {
 	ImGui::Text("Gun num:  %02x", hand->gset.weaponnum);
@@ -347,6 +488,8 @@ static inline void describeWeapon(weaponobj *wpn)
 	ImGui::Text("Timer (240hz): %d", wpn->timer240);
 }
 
+static inline void describeProp(prop *prop);
+
 static inline void describeChr(chrdata *chr)
 {
 	ImGui::Text("Number: %04x", (u16)chr->chrnum);
@@ -355,13 +498,65 @@ static inline void describeChr(chrdata *chr)
 	ImGui::Text("Hidden 1: %08x", chr->hidden);
 	ImGui::Text("Hidden 2: %04x", chr->hidden2);
 	ImGui::Text("Chr flags: %08x", chr->chrflags);
+	ImGui::Text("Damage: %.3f", chr->damage);
+	ImGui::Text("Shield: %.3f", chr->cshield);
 	ImGui::Text("Body: %04x", (u16)chr->bodynum);
 	ImGui::Text("Head: %02x", (u8)chr->headnum);
 	ImGui::Text("Team: %02x", chr->team);
 	ImGui::Text("Tude: %02x", chr->tude);
 	ImGui::Text("Action: %s (%02x)", fmtActionType(chr->actiontype), (u8)chr->actiontype);
-}
 
+	ImGui::Separator();
+
+	if (chr->weapons_held[HAND_RIGHT]) {
+		if (ImGui::TreeNode(strFmt("Right hand prop (%p)", chr->weapons_held[HAND_RIGHT]))) {
+			describeProp(chr->weapons_held[HAND_RIGHT]);
+			ImGui::TreePop();
+		}
+	}
+	if (chr->weapons_held[HAND_LEFT]) {
+		if (ImGui::TreeNode(strFmt("Left hand prop (%p)", chr->weapons_held[HAND_LEFT]))) {
+			describeProp(chr->weapons_held[HAND_LEFT]);
+			ImGui::TreePop();
+		}
+	}
+	if (chr->weapons_held[2]) {
+		if (ImGui::TreeNode(strFmt("Hat prop (%p)", chr->weapons_held[2]))) {
+			describeProp(chr->weapons_held[2]);
+			ImGui::TreePop();
+		}
+	}
+
+	ImGui::SeparatorText("Controls");
+
+	if (ImGui::Button("Kill")) {
+		debuggerKillChr(chr);
+	}
+
+	ImGui::SameLine();
+
+	if (ImGui::Button("Heal")) {
+		chr->damage = 0.f;
+	}
+
+	ImGui::SameLine();
+
+	if (ImGui::Button("Sleep")) {
+		chr->sleep = 127;
+	}
+
+	ImGui::SameLine();
+
+	if (ImGui::Button("Wake")) {
+		chr->sleep = 0;
+	}
+
+	// line break
+
+	if (ImGui::Button("Drop guns")) {
+		chrDropItemsForOwnerReap(chr);
+	}
+}
 
 static inline void describeProp(prop *prop)
 {
@@ -410,6 +605,11 @@ static inline void describePlayer(player *plr)
 
 	ImGui::Separator();
 
+	ImGui::Text("Health: %.3f", plr->bondhealth);
+	ImGui::Text("Shield: %.3f", plr->apparentarmour);
+
+	ImGui::Separator();
+
 	if (plr->prop) {
 		if (ImGui::TreeNode(strFmt("Prop (%p)", plr->prop))) {
 			describeProp(plr->prop);
@@ -426,45 +626,6 @@ static inline void describePlayer(player *plr)
 	if (ImGui::TreeNode("Left hand")) {
 		describeHand(&plr->hands[HAND_LEFT]);
 		ImGui::TreePop();
-	}
-}
-
-static inline void debuggerTeleportPlayer(struct coord& crd)
-{
-	sysLogPrintf(LOG_NOTE, "DBG: teleporting player 1 to (%.2f, %.2f, %.2f)", crd.x, crd.y, crd.z);
-
-	if (!g_Vars.players[0] || !g_Vars.players[0]->prop) {
-		sysLogPrintf(LOG_NOTE, "DBG: no player 1 or player 1 has no prop");
-		return;
-	}
-
-	struct chrdata *playerchr = g_Vars.players[0]->prop->chr;
-	if (!playerchr) {
-		sysLogPrintf(LOG_NOTE, "DBG: player 1 has no chr");
-		return;
-	}
-
-	RoomNum inrooms[9] = { -1 };
-	RoomNum aboverooms[9] = { -1 };
-
-	bgFindRoomsByPos(&crd, inrooms, aboverooms, 8, NULL);
-
-	RoomNum *rooms = NULL;
-	if (inrooms[0] != -1) {
-		rooms = inrooms;
-	} else if (aboverooms[0] != -1) {
-		rooms = aboverooms;
-	}
-
-	if (rooms) {
-		const u32 old = playerchr->hidden;
-		playerchr->hidden |= CHRHFLAG_WARPONSCREEN;
-		chrMoveToPos(playerchr, &crd, rooms, g_Vars.players[0]->vv_theta, true);
-		if ((old & CHRHFLAG_WARPONSCREEN) == 0) {
-			playerchr->hidden &= ~CHRHFLAG_WARPONSCREEN;
-		}
-	} else {
-		sysLogPrintf(LOG_NOTE, "DBG: could not find any rooms at teleport destination");
 	}
 }
 
@@ -505,6 +666,14 @@ extern "C" void debuggerFrame(void)
 			debuggerTeleportPlayer(crd);
 		}
 
+		if (ImGui::Button("Kill")) {
+			debuggerKillPlayer();
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Heal")) {
+			debuggerHealPlayer();
+		}
+
 		ImGui::SeparatorText("Time");
 
 		bool timePasses = (g_DebuggerTimePasses != 0);
@@ -523,6 +692,10 @@ extern "C" void debuggerFrame(void)
 		if (ImGui::Button("+10 frames")) {
 			g_DebuggerFrameAdvance = 10;
 		}
+
+		ImGui::SeparatorText("Other");
+
+		ImGui::Checkbox("Show prop info", &showPropInfo);
 	}
 
 	if (ImGui::CollapsingHeader("Time")) {

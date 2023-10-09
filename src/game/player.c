@@ -73,6 +73,7 @@
 #ifndef PLATFORM_N64
 #include "video.h"
 #include "input.h"
+#include "debugger.h"
 #endif
 
 s32 g_DefaultWeapons[2];
@@ -4868,6 +4869,8 @@ Gfx *playerRenderHud(Gfx *gdl)
 		gdl = hudmsgsRender(gdl);
 		gdl = playerDrawStoredFade(gdl);
 	}
+
+	gdl = debuggerDrawPropInfo(gdl);
 
 	return gdl;
 }

@@ -96,6 +96,9 @@
 #include "lib/vars.h"
 #include "lib/vi.h"
 #include "types.h"
+#ifndef PLATFORM_N64
+#include "debugger.h"
+#endif
 
 struct sndstate *g_MiscSfxAudioHandles[3];
 u32 var800aa5bc;
@@ -295,6 +298,8 @@ void lvReset(s32 stagenum)
 	g_Vars.autocutgroupskip = false;
 
 	g_MiscAudioHandle = NULL;
+
+	debuggerUpdatePropInfo(true);
 
 	musicReset();
 	modelmgrSetLvResetting(true);
@@ -1193,6 +1198,8 @@ Gfx *lvRender(Gfx *gdl)
 				propsSort();
 				autoaimTick();
 				handsTickAttack();
+
+				debuggerUpdatePropInfo(false);
 
 				// Calculate lookingatprop
 				if (PLAYERCOUNT() == 1
