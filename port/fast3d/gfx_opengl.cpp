@@ -921,7 +921,9 @@ static void gfx_opengl_init(void) {
         // maybe replace this with sysFatalError, though the GLSL compiler will cause that later anyway
     }
 
-    if (!gfx_opengl_supports_framebuffers()) {
+    if (!gfx_framebuffers_enabled) {
+        sysLogPrintf(LOG_WARNING, "GL: framebuffer effects disabled by user");
+    } else if (!gfx_opengl_supports_framebuffers()) {
         sysLogPrintf(LOG_WARNING, "GL: GL_ARB_framebuffer_object unsupported, framebuffer effects disabled");
         gfx_framebuffers_enabled = false;
     }
@@ -1110,7 +1112,7 @@ void gfx_opengl_select_texture_fb(int fb_id) {
     glBindTexture(GL_TEXTURE_2D, framebuffers[fb_id].clrbuf);
 }
 
-void gfx_opengl_copy_framebuffer(int fb_dst, int fb_src, int left, int top) {
+void gfx_opengl_copy_framebuffer(int fb_dst, int fb_src, int left, int top, bool flip_y, bool use_back) {
     if (!gfx_framebuffers_enabled || fb_dst >= (int)framebuffers.size() || fb_src >= (int)framebuffers.size()) {
         return;
     }
@@ -1139,15 +1141,21 @@ void gfx_opengl_copy_framebuffer(int fb_dst, int fb_src, int left, int top) {
         srcY1 = src.height;
     }
 
-    if (fb_src == 0) {
-        // flip the dst rect to mirror the image vertically
-        std::swap(dstY0, dstY1);
-    }
-
     glDisable(GL_SCISSOR_TEST);
 
     glBindFramebuffer(GL_READ_FRAMEBUFFER, src.fbo);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dst.fbo);
+
+    if (flip_y) {
+        // flip the dst rect to mirror the image vertically
+        std::swap(dstY0, dstY1);
+    }
+
+    if (fb_src == 0) {
+        glReadBuffer(use_back ? GL_BACK : GL_FRONT);
+    } else {
+        glReadBuffer(GL_COLOR_ATTACHMENT0);
+    }
 
     glBlitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
