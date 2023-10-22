@@ -715,6 +715,7 @@ Gfx *bviewDrawFisheye(Gfx *gdl, u32 colour, u32 alpha, s32 shuttertime60, s8 sta
 
 #ifndef PLATFORM_N64
 	// make a copy of the current back buffer contents that we will be using as a texture
+	gDPFlushEXT(gdl++);
 	gDPCopyFramebufferEXT(gdl++, g_PrevFrameFb, 0, 0, 0, G_ON);
 	gDPSetFramebufferTextureEXT(gdl++, 0, 0, 0, g_PrevFrameFb);
 #endif
@@ -1367,8 +1368,8 @@ Gfx *bviewDrawEyespyMetrics(Gfx *gdl)
 
 	{
 		s8 contpadnum = optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex);
-		u16 buttonsdown = joyGetButtons(contpadnum, 0xffff); \
-		u16 buttonsthisframe = joyGetButtonsPressedThisFrame(contpadnum, 0xffff);
+		u32 buttonsdown = joyGetButtons(contpadnum, 0xffffffff); \
+		u32 buttonsthisframe = joyGetButtonsPressedThisFrame(contpadnum, 0xffffffff);
 		s8 cstickx = joyGetStickX(contpadnum); \
 		s8 csticky = joyGetStickY(contpadnum);
 		s32 xpos;
@@ -2654,6 +2655,16 @@ Gfx *bviewDrawHorizonScanner(Gfx *gdl)
 		vsplit = 14;
 	}
 
+#ifndef PLATFORM_N64
+	if (!videoFramebuffersSupported()) {
+		return gdl;
+	}
+	// make a copy of what we have drawn so far and use it as a texture
+	gDPFlushEXT(gdl++);
+	gDPCopyFramebufferEXT(gdl++, g_PrevFrameFb, 0, 0, 0, G_ON);
+	gDPSetFramebufferTextureEXT(gdl++, 0, 0, 0, g_PrevFrameFb);
+#endif
+
 	// Iterate horizontal lines down the lens with a bit extra on top and bottom
 	for (liney = lenstop - 9; liney < lenstop + lensheight + vsplit + 9; liney++) {
 		if (liney < lenstop + lensheight && liney >= lenstop) {
@@ -2701,7 +2712,18 @@ Gfx *bviewDrawHorizonScanner(Gfx *gdl)
 
 		gDPSetColor(gdl++, G_SETENVCOLOR, colour);
 
+#ifdef PLATFORM_N64
 		gdl = bviewCopyPixels(gdl, fb, liney, 5, liney, RANDOMFRAC() * range + 1, viewleft, viewwidth);
+#else
+		const f32 xscale = RANDOMFRAC() * range + 1;
+		const f32 halfwidth = viewwidth / 2.f;
+		const s32 left = viewleft + halfwidth * (1.f - xscale);
+		const s32 right = viewleft + halfwidth * (1.f + xscale);
+		gSPImageRectangleEXT(gdl++,
+			left << 2, liney << 2, viewleft, liney,
+			right << 2, (liney + 1) << 2, viewleft + viewwidth, liney + 1,
+			0, videoGetNativeWidth(), videoGetNativeHeight());
+#endif
 	}
 
 	return gdl;
