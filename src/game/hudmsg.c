@@ -269,11 +269,7 @@ Gfx *hudmsgRenderZoomRange(Gfx *gdl, u32 alpha)
 			return gdl;
 		}
 	} else {
-#ifdef PLATFORM_N64
-		maxzoom = 60.0f / zoomfov;
-#else
-		maxzoom = g_PlayerDefaultFovY / zoomfov;
-#endif
+		maxzoom = PLAYER_DEFAULT_FOV / zoomfov;
 		curzoom = maxzoom - 1.0f / (zoomfov / zoominfovy) + 1;
 	}
 
@@ -1519,7 +1515,9 @@ Gfx *hudmsgsRender(Gfx *gdl)
 					gdl = hudmsgRenderBox(gdl, x - 3, y - 3, x + msg->width + 2, y + msg->height + 2, 1.0f, bordercolour, spc0);
 #endif
 
-					gdl = textRenderProjected(gdl, &x, &y, msg->text, msg->font1, msg->font2, textcolour, viGetWidth(), viGetHeight(), 0, 0);
+					if (spc0 > 0) {
+						gdl = textRenderProjected(gdl, &x, &y, msg->text, msg->font1, msg->font2, textcolour, viGetWidth(), viGetHeight(), 0, 0);
+					}
 				} else {
 					gdl = text0f153a34(gdl, x, y, x + msg->width, y + msg->height, 0);
 
@@ -1601,7 +1599,9 @@ Gfx *hudmsgsRender(Gfx *gdl)
 					gdl = hudmsgRenderBox(gdl, x - 3, y - 3, x + msg->width + 2, y + msg->height + 2, 1.0f, bordercolour, 1.0f - spa8);
 #endif
 
-					gdl = textRenderProjected(gdl, &x, &y, msg->text, msg->font1, msg->font2, textcolour, viGetWidth(), viGetHeight(), 0, 0);
+					if (spa8 < 1.0f) {
+						gdl = textRenderProjected(gdl, &x, &y, msg->text, msg->font1, msg->font2, textcolour, viGetWidth(), viGetHeight(), 0, 0);
+					}
 				} else {
 					gdl = text0f153a34(gdl, x, y, x + msg->width, y + msg->height, 0);
 

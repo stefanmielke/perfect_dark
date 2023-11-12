@@ -203,17 +203,6 @@ s16 g_DeathAnimations[] = {
 
 s32 g_NumDeathAnimations = 0;
 
-#ifndef PLATFORM_N64
-f32 g_PlayerDefaultFovY = 60.f;
-f32 g_PlayerCrosshairSway = 1.f;
-s32 g_PlayerMouseAimMode = MOUSEAIM_CLASSIC;
-f32 g_PlayerMouseAimSpeedX = 0.75f;
-f32 g_PlayerMouseAimSpeedY = 0.75f;
-s32 g_PlayerFovAffectsZoom = 1;
-f32 g_PlayerFovZoomMultiplier = 1.0f;
-s32 g_PlayerClassicCrouch = true;
-#endif
-
 /**
  * Choose which location to spawn into from the given pads. Write the position
  * and rooms to the dstpos and dstrooms pointers and return the angle that the
@@ -531,6 +520,10 @@ void playerStartNewLife(void)
 	g_Vars.currentplayer->damagetype = DAMAGETYPE_7;
 	g_Vars.currentplayer->gunammooff = 0;
 	g_Vars.currentplayer->gunsightoff = 2;
+#ifndef PLATFORM_N64
+	g_Vars.currentplayer->prop->chr->blurdrugamount = 0;
+	g_Vars.currentplayer->prop->chr->poisoncounter = 0;
+#endif
 
 	hudmsgsSetOn(0xffffffff);
 
@@ -2082,8 +2075,8 @@ void playerTweenFovY(f32 targetfovy)
 	f32 speed = 15.0f / 30.0f;
 
 #ifndef PLATFORM_N64
-	if (g_PlayerDefaultFovY > 60.0f) { // adjust zoom speed depending on non-default fov setting (higher fov == faster zoom)
-		speed /= g_PlayerDefaultFovY / 60.0f;
+	if (PLAYER_DEFAULT_FOV > 60.0f) { // adjust zoom speed depending on non-default fov setting (higher fov == faster zoom)
+		speed /= PLAYER_DEFAULT_FOV / 60.0f;
 	}
 #endif
 
@@ -2708,7 +2701,7 @@ Gfx *playerRenderHealthBar(Gfx *gdl)
 #ifdef PLATFORM_N64
 	mtx00016ae4(&matrix, 0, 370, 0, 0, 0, 0, 0, 0, -1);
 #else
-	f32 fovsc = 60.f / g_PlayerDefaultFovY;
+	f32 fovsc = 60.f / PLAYER_DEFAULT_FOV;
 	if (fovsc > 1.01f) {
 		fovsc *= 1.1f;
 	}
@@ -3163,22 +3156,14 @@ void playerConfigureVi(void)
 	var800800f0jf = 0;
 #endif
 
-#ifdef PLATFORM_N64
-	playermgrSetFovY(60);
-#else
-	playermgrSetFovY(g_PlayerDefaultFovY);
-#endif
+	playermgrSetFovY(PLAYER_DEFAULT_FOV);
 	playermgrSetAspectRatio(ratio);
 	playermgrSetViewSize(playerGetViewportWidth(), playerGetViewportHeight());
 	playermgrSetViewPosition(playerGetViewportLeft(), playerGetViewportTop());
 
 	viSetMode(g_ViModes[g_ViRes].xscale);
 
-#ifdef PLATFORM_N64
-	viSetFovAspectAndSize(60, ratio, playerGetViewportWidth(), playerGetViewportHeight());
-#else
-	viSetFovAspectAndSize(g_PlayerDefaultFovY, ratio, playerGetViewportWidth(), playerGetViewportHeight());
-#endif
+	viSetFovAspectAndSize(PLAYER_DEFAULT_FOV, ratio, playerGetViewportWidth(), playerGetViewportHeight());
 
 	viSetViewPosition(playerGetViewportLeft(), playerGetViewportTop());
 	viSetSize(playerGetFbWidth(), playerGetFbHeight());
@@ -3241,21 +3226,13 @@ void playerTick(bool arg0)
 		return;
 	}
 
-#ifdef PLATFORM_N64
-	playermgrSetFovY(60);
-#else
-	playermgrSetFovY(g_PlayerDefaultFovY);
-#endif
+	playermgrSetFovY(PLAYER_DEFAULT_FOV);
 	playermgrSetAspectRatio(aspectratio);
 	playermgrSetViewSize(playerGetViewportWidth(), playerGetViewportHeight());
 	playermgrSetViewPosition(playerGetViewportLeft(), playerGetViewportTop());
 
 	viSetMode(g_ViModes[g_ViRes].xscale);
-#ifdef PLATFORM_N64
-	viSetFovAspectAndSize(60, aspectratio, playerGetViewportWidth(), playerGetViewportHeight());
-#else
-	viSetFovAspectAndSize(g_PlayerDefaultFovY, aspectratio, playerGetViewportWidth(), playerGetViewportHeight());
-#endif
+	viSetFovAspectAndSize(PLAYER_DEFAULT_FOV, aspectratio, playerGetViewportWidth(), playerGetViewportHeight());
 	viSetViewPosition(playerGetViewportLeft(), playerGetViewportTop());
 	viSetSize(playerGetFbWidth(), playerGetFbHeight());
 	viSetBufSize(playerGetFbWidth(), playerGetFbHeight());
