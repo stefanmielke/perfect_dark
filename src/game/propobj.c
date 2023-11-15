@@ -7679,7 +7679,12 @@ void doorTick(struct prop *doorprop)
 	}
 
 	// Update frac
+#ifdef PLATFORM_N64
 	if (door->lastcalc60 < g_Vars.lvframe60 || g_Vars.lvupdate240 == 0) {
+#else
+	// lastcalc60 actually stores lvframe240
+	if (door->lastcalc60 < g_Vars.lvframe240 || g_Vars.lvupdate240 == 0) {
+#endif
 		doorsCalcFrac(door);
 	}
 
@@ -9010,6 +9015,12 @@ void autogunInitMatrices(struct prop *prop, Mtxf *mtx)
 
 void autogunTickShoot(struct prop *autogunprop)
 {
+#ifndef PLATFORM_N64
+	// HACK: fire every other tick at 60+ fps and every tick at <60 fps
+	if (g_Vars.lvupdate240 <= TICKS(4) && (g_Vars.lvframe60 & 1)) {
+		return;
+	}
+#endif
 	if (!lvIsPaused()) {
 		struct autogunobj *autogun = (struct autogunobj *) autogunprop->obj;
 		struct defaultobj *obj = autogunprop->obj;
@@ -20345,7 +20356,11 @@ void doorsCalcFrac(struct doorobj *door)
 			func0f08d460(loopdoor);
 		}
 
+#ifdef PLATFORM_N64
 		loopdoor->lastcalc60 = g_Vars.lvframe60;
+#else
+		loopdoor->lastcalc60 = g_Vars.lvframe240; // actually use the 240hz counter for higher framerates
+#endif
 		loopdoor = loopdoor->sibling;
 
 		if (loopdoor == door) {
