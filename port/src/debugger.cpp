@@ -325,41 +325,6 @@ extern "C" void debuggerUpdatePropInfo(s32 clear)
 	}
 }
 
-extern "C" Gfx *debuggerDrawPropInfo(Gfx *gdl)
-{
-	if (!showPropInfo || !lookatprop) {
-		return gdl;
-	}
-
-	struct prop *prop = lookatprop;
-
-	char text[256] = { 0 };
-	s32 x = 4;
-	s32 y = 4;
-
-	gSPSetExtraGeometryModeEXT(gdl++, G_ASPECT_LEFT_EXT);
-	gdl = text0f153628(gdl);
-	gdl = text0f153838(gdl);
-
-	std::snprintf(text, sizeof(text), "looking at\nprop %p: %s (%02x)\n", prop, fmtPropType(prop->type), prop->type);
-	gdl = textRender(gdl, &x, &y, text, g_CharsHandelGothicXs, g_FontHandelGothicXs, 0x00ff00a0, 0x000000a0, viGetWidth(), viGetHeight(), 0, 0);
-
-	if (prop->obj) {
-		std::snprintf(text, sizeof(text), "obj  %p: %s (%02x) mdl %04x\n", prop->obj, fmtObjType(prop->obj->type), prop->obj->type, prop->obj->modelnum);
-		gdl = textRender(gdl, &x, &y, text, g_CharsHandelGothicXs, g_FontHandelGothicXs, 0x00ff00a0, 0x000000a0, viGetWidth(), viGetHeight(), 0, 0);
-	}
-
-	if (prop->chr && (prop->type == PROPTYPE_CHR || prop->type == PROPTYPE_PLAYER || prop->type == PROPTYPE_EYESPY)) {
-		std::snprintf(text, sizeof(text), "chr  %p: num %04x\n", prop->chr, prop->chr->chrnum);
-		gdl = textRender(gdl, &x, &y, text, g_CharsHandelGothicXs, g_FontHandelGothicXs, 0x00ff00a0, 0x000000a0, viGetWidth(), viGetHeight(), 0, 0);
-	}
-
-	gdl = text0f153780(gdl);
-	gSPClearExtraGeometryModeEXT(gdl++, G_ASPECT_MODE_EXT);
-
-	return gdl;
-}
-
 static inline void debuggerTeleportPlayer(struct coord& crd)
 {
 	sysLogPrintf(LOG_NOTE, "DBG: teleporting player 1 to (%.2f, %.2f, %.2f)", crd.x, crd.y, crd.z);
@@ -695,8 +660,6 @@ extern "C" void debuggerFrame(void)
 		}
 
 		ImGui::SeparatorText("Other");
-
-		ImGui::Checkbox("Show prop info", &showPropInfo);
 	}
 
 	if (ImGui::CollapsingHeader("Time")) {
@@ -851,6 +814,13 @@ extern "C" void debuggerFrame(void)
 				ImGui::EndTable();
 			}
 			ImGui::TreePop();
+		}
+	}
+
+	if ((showPropInfo = ImGui::CollapsingHeader("Looking at"))) {
+		if (lookatprop) {
+			ImGui::Text("Looking at prop");
+			describeProp(lookatprop);
 		}
 	}
 

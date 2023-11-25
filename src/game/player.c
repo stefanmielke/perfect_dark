@@ -4867,8 +4867,6 @@ Gfx *playerRenderHud(Gfx *gdl)
 		gdl = playerDrawStoredFade(gdl);
 	}
 
-	gdl = debuggerDrawPropInfo(gdl);
-
 	return gdl;
 }
 
