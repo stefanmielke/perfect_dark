@@ -25,6 +25,7 @@ extern "C"
 #include "lib/memp.h"
 #include "lib/mema.h"
 #include "lib/vi.h"
+#include "lib/lib_17ce0.h"
 #include "video.h"
 #include "input.h"
 #include "system.h"
@@ -68,6 +69,8 @@ static bool showActiveProps = true;
 static void *focusPtr = nullptr;
 
 static struct prop *lookatprop = nullptr;
+static struct hitthing lookathit;
+static bool lookathitset;
 
 static inline const char *fmtCoord(const coord& crd)
 {
@@ -312,16 +315,48 @@ extern "C" void debuggerStartFrame(void)
 	ImGui::NewFrame();
 }
 
+static inline bool debuggerGetSurfaceInfo(struct hitthing *hit)
+{
+	struct coord endpos;
+	endpos.x = g_Vars.currentplayer->cam_pos.x + g_Vars.currentplayer->cam_look.x * 10000.f;
+	endpos.y = g_Vars.currentplayer->cam_pos.y + g_Vars.currentplayer->cam_look.y * 10000.f;
+	endpos.z = g_Vars.currentplayer->cam_pos.z + g_Vars.currentplayer->cam_look.z * 10000.f;
+
+	// get what rooms the LOS goes through
+	RoomNum outrooms[17], tmprooms[8], srcrooms[2];
+	srcrooms[0] = g_Vars.currentplayer->cam_room;
+	srcrooms[1] = -1;
+	outrooms[16] = -1;
+	portal00018148(&g_Vars.currentplayer->cam_pos, &endpos, srcrooms, tmprooms, outrooms, 16);
+
+	// no prop was hit; check for bg hits
+	for (s32 i = 0; outrooms[i] != -1; ++i) {
+		if (bgTestHitInRoom(&g_Vars.currentplayer->cam_pos, &endpos, outrooms[i], hit)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 extern "C" void debuggerUpdatePropInfo(s32 clear)
 {
 	if (showPropInfo) {
 		if (clear) {
 			lookatprop = nullptr;
+			lookathitset = false;
 		} else {
 			lookatprop = propFindAimingAt(HAND_RIGHT, false, FINDPROPCONTEXT_QUERY);
+			if (!lookatprop) {
+				// if we aren't looking at a prop, try to get the surface we're looking at
+				lookathitset = debuggerGetSurfaceInfo(&lookathit);
+			} else {
+				lookathitset = false;
+			}
 		}
 	} else {
 		lookatprop = nullptr;
+		lookathitset = false;
 	}
 }
 
@@ -821,6 +856,12 @@ extern "C" void debuggerFrame(void)
 		if (lookatprop) {
 			ImGui::Text("Looking at prop");
 			describeProp(lookatprop);
+		} else if (lookathitset) {
+			ImGui::Text("Looking at surface");
+			ImGui::Text("Hit pos: %s", fmtCoord(lookathit.pos));
+			ImGui::Text("Texture: %04x", lookathit.texturenum);
+		} else {
+			ImGui::Text("Looking at nothing");
 		}
 	}
 
