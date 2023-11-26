@@ -520,6 +520,19 @@ static MenuItemHandlerResult menuhandlerSwapSticks(s32 operation, struct menuite
 	return 0;
 }
 
+static MenuItemHandlerResult menuhandlerFirstController(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	switch (operation) {
+	case MENUOP_GET:
+		return (inputControllerGetFirstIndex() == g_ExtMenuPlayer);
+	case MENUOP_SET:
+		inputControllerSetFirstIndex(g_ExtMenuPlayer);
+		break;
+	}
+
+	return 0;
+}
+
 struct menuitem g_ExtendedControllerMenuItems[] = {
 	{
 		MENUITEMTYPE_CHECKBOX,
@@ -536,6 +549,14 @@ struct menuitem g_ExtendedControllerMenuItems[] = {
 		(uintptr_t)"Swap Sticks",
 		0,
 		menuhandlerSwapSticks,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Assign First Controller",
+		0,
+		menuhandlerFirstController,
 	},
 	{
 		MENUITEMTYPE_SELECTABLE,
@@ -724,6 +745,56 @@ struct menudialogdef g_ExtendedVideoMenuDialog = {
 	NULL,
 };
 
+static MenuItemHandlerResult menuhandlerDisableMpDeathMusic(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	switch (operation) {
+	case MENUOP_GET:
+		return g_MusicDisableMpDeath;
+	case MENUOP_SET:
+		g_MusicDisableMpDeath = data->checkbox.value;
+		break;
+	}
+
+	return 0;
+}
+
+struct menuitem g_ExtendedAudioMenuItems[] = {
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Disable MP Death Music",
+		0,
+		menuhandlerDisableMpDeathMusic,
+	},
+	{
+		MENUITEMTYPE_SEPARATOR,
+		0,
+		0,
+		0,
+		0,
+		NULL,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_SELECTABLE_CLOSESDIALOG,
+		L_OPTIONS_213, // "Back"
+		0,
+		NULL,
+	},
+	{ MENUITEMTYPE_END },
+};
+
+struct menudialogdef g_ExtendedAudioMenuDialog = {
+	MENUDIALOGTYPE_DEFAULT,
+	(uintptr_t)"Extended Audio Options",
+	g_ExtendedAudioMenuItems,
+	NULL,
+	MENUDIALOGFLAG_LITERAL_TEXT,
+	NULL,
+};
+
 static MenuItemHandlerResult menuhandlerCrouchMode(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	static const char *opts[] = {
@@ -886,27 +957,31 @@ struct menudialogdef g_ExtendedBindKeyMenuDialog = {
 struct menubind {
 	u32 ck;
 	const char *name;
+	const char *n64name;
 };
 
 static const struct menubind menuBinds[] = {
-	{ CK_ZTRIG,  "Fire [ZT]\n" },
-	{ CK_LTRIG,  "Fire Mode [LT]\n" },
-	{ CK_RTRIG,  "Aim Mode [RT]\n" },
-	{ CK_A,      "Use / Accept [A]\n" },
-	{ CK_B,      "Use / Cancel [B]\n" },
-	{ CK_X,      "Reload [X]\n" },
-	{ CK_Y,      "Next Weapon [Y]\n" },
-	{ CK_DPAD_L, "Prev Weapon [DL]\n" },
-	{ CK_DPAD_D, "Radial Menu [DD]\n" },
-	{ CK_START,  "Pause Menu [ST]\n" },
-	{ CK_8000,   "Cycle Crouch [+]\n" },
-	{ CK_4000,   "Half Crouch [+]\n" },
-	{ CK_2000,   "Full Crouch [+]\n" },
+	{ CK_ZTRIG,  "Fire [ZT]\n",        "N64 Z Trigger\n" },
+	{ CK_LTRIG,  "Fire Mode [LT]\n",   "N64 L Trigger\n"},
+	{ CK_RTRIG,  "Aim Mode [RT]\n",    "N64 R Trigger\n" },
+	{ CK_A,      "Use / Accept [A]\n", "N64 A Button\n" },
+	{ CK_B,      "Use / Cancel [B]\n", "N64 B Button\n" },
+	{ CK_X,      "Reload [X]\n",       "N64 Ext X\n" },
+	{ CK_Y,      "Next Weapon [Y]\n",  "N64 Ext Y\n" },
+	{ CK_DPAD_U, "D-Pad Up [DU]\n",    "N64 D-Pad Up\n" },
+	{ CK_DPAD_R, "D-Pad Right [DR]\n", "N64 D-Pad Right\n" },
+	{ CK_DPAD_L, "Prev Weapon [DL]\n", "N64 D-Pad Left\n" },
+	{ CK_DPAD_D, "Radial Menu [DD]\n", "N64 D-Pad Down\n" },
+	{ CK_START,  "Pause Menu [ST]\n",  "N64 Start\n" },
+	{ CK_8000,   "Cycle Crouch [+]\n", "N64 Ext 8000\n" },
+	{ CK_4000,   "Half Crouch [+]\n",  "N64 Ext 4000\n" },
+	{ CK_2000,   "Full Crouch [+]\n",  "N64 Ext 2000\n" },
 };
 
 static const char *menutextBind(struct menuitem *item);
 static MenuItemHandlerResult menuhandlerBind(s32 operation, struct menuitem *item, union handlerdata *data);
-static MenuItemHandlerResult menuhandlerResetBinds(s32 operation, struct menuitem *item, union handlerdata *data);
+static MenuItemHandlerResult menuhandlerResetBindsPC(s32 operation, struct menuitem *item, union handlerdata *data);
+static MenuItemHandlerResult menuhandlerResetBindsN64(s32 operation, struct menuitem *item, union handlerdata *data);
 
 #define DEFINE_MENU_BIND() \
 	{ \
@@ -932,6 +1007,8 @@ struct menuitem g_ExtendedBindsMenuItems[] = {
 	DEFINE_MENU_BIND(),
 	DEFINE_MENU_BIND(),
 	DEFINE_MENU_BIND(),
+	DEFINE_MENU_BIND(),
+	DEFINE_MENU_BIND(),
 	{
 		MENUITEMTYPE_SEPARATOR,
 		0,
@@ -944,9 +1021,17 @@ struct menuitem g_ExtendedBindsMenuItems[] = {
 		MENUITEMTYPE_SELECTABLE,
 		0,
 		MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)"Reset to Defaults\n",
+		(uintptr_t)"Reset to PC Defaults\n",
 		0,
-		menuhandlerResetBinds,
+		menuhandlerResetBindsPC,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Reset to N64 Defaults\n",
+		0,
+		menuhandlerResetBindsN64,
 	},
 	{
 		MENUITEMTYPE_SEPARATOR,
@@ -989,7 +1074,9 @@ static MenuItemHandlerResult menuhandlerDoBind(s32 operation, struct menuitem *i
 
 static const char *menutextBind(struct menuitem *item)
 {
-	return menuBinds[item - g_ExtendedBindsMenuItems].name;
+	return g_PlayerExtCfg[g_ExtMenuPlayer].extcontrols ?
+		menuBinds[item - g_ExtendedBindsMenuItems].name :
+		menuBinds[item - g_ExtendedBindsMenuItems].n64name;
 }
 
 static MenuItemHandlerResult menuhandlerBind(s32 operation, struct menuitem *item, union handlerdata *data)
@@ -1027,10 +1114,19 @@ static MenuItemHandlerResult menuhandlerBind(s32 operation, struct menuitem *ite
 	return 0;
 }
 
-static MenuItemHandlerResult menuhandlerResetBinds(s32 operation, struct menuitem *item, union handlerdata *data)
+static MenuItemHandlerResult menuhandlerResetBindsPC(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	if (operation == MENUOP_SET) {
-		inputSetDefaultKeyBinds();
+		inputSetDefaultKeyBinds(g_ExtMenuPlayer, false);
+	}
+
+	return 0;
+}
+
+static MenuItemHandlerResult menuhandlerResetBindsN64(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	if (operation == MENUOP_SET) {
+		inputSetDefaultKeyBinds(g_ExtMenuPlayer, true);
 	}
 
 	return 0;
@@ -1081,6 +1177,14 @@ struct menuitem g_ExtendedMenuItems[] = {
 		(uintptr_t)"Video\n",
 		0,
 		(void *)&g_ExtendedVideoMenuDialog,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Audio\n",
+		0,
+		(void *)&g_ExtendedAudioMenuDialog,
 	},
 	{
 		MENUITEMTYPE_SELECTABLE,
