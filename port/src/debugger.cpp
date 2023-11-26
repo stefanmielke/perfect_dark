@@ -280,6 +280,23 @@ static inline void debuggerHotKey(const s32 key, const bool pressed)
 		case SDLK_F4:
 			advanceHeld = pressed;
 			break;
+		case SDLK_F5:
+			if (pressed) {
+				if (g_TickRateDiv <= 1) {
+					g_TickRateDiv = 2;
+				} else {
+					g_TickRateDiv = 1;
+				}
+			}
+			break;
+		case SDLK_F6:
+			if (pressed) {
+				g_TickRateDiv++;
+				if (g_TickRateDiv > 5) {
+					g_TickRateDiv = 0;
+				}
+			}
+			break;
 		default:
 			break;
 	}
@@ -680,6 +697,14 @@ extern "C" void debuggerFrame(void)
 		bool timePasses = (g_DebuggerTimePasses != 0);
 		if (ImGui::Checkbox("Time passes", &timePasses)) {
 			g_DebuggerTimePasses = (s32)timePasses;
+		}
+
+		s32 framediv = g_TickRateDiv;
+		if (ImGui::InputInt("Tickrate", &framediv, 1, 2)) {
+			if (framediv >= 0 && framediv < 60) {
+				g_TickRateDiv = framediv;
+				g_Vars.mininc60 = framediv;
+			}
 		}
 
 		if (ImGui::Button("+1 frame")) {
