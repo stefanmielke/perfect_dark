@@ -1008,7 +1008,7 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 												amOpen();
 												g_Vars.currentplayer->invdowntime = -1;
 											} else {
-												g_Vars.currentplayer->invdowntime++;
+												g_Vars.currentplayer->invdowntime += g_Vars.lvupdate60;
 											}
 										}
 									}
@@ -1467,7 +1467,7 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 												amOpen();
 												g_Vars.currentplayer->invdowntime = -1;
 											} else {
-												g_Vars.currentplayer->invdowntime++;
+												g_Vars.currentplayer->invdowntime += g_Vars.lvupdate60;
 											}
 										}
 									}
@@ -1806,7 +1806,8 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 		if (controlmode == CONTROLMODE_PC) {
 			g_Vars.currentplayer->bondactivateorreload = g_Vars.currentplayer->bondactivateorreload | JO_ACTION_ACTIVATE;
 		} else {
-			g_Vars.currentplayer->bondactivateorreload = movedata.btapcount;
+			g_Vars.currentplayer->bondactivateorreload = movedata.btapcount ?
+				(g_Vars.currentplayer->bondactivateorreload | JO_ACTION_ACTIVATE | JO_ACTION_RELOAD) : 0;
 		}
 
 		bmoveHandleActivate();
