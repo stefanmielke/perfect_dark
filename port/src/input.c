@@ -13,6 +13,11 @@
 #include "debugger.h"
 #include "fs.h"
 
+#if !SDL_VERSION_ATLEAST(2, 0, 14)
+// this was added in 2.0.14
+#define SDL_CONTROLLER_TYPE_VIRTUAL SDL_CONTROLLER_TYPE_UNKNOWN
+#endif
+
 #define CONTROLLERDB_FNAME "gamecontrollerdb.txt"
 
 #define MAX_BIND_STR 256
