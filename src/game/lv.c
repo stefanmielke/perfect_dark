@@ -96,6 +96,10 @@
 #include "lib/vars.h"
 #include "lib/vi.h"
 #include "types.h"
+#ifndef PLATFORM_N64
+#include "net/net.h"
+#include "net/netmsg.h"
+#endif
 
 struct sndstate *g_MiscSfxAudioHandles[3];
 u32 var800aa5bc;
@@ -360,6 +364,11 @@ void lvReset(s32 stagenum)
 				g_Vars.playerstats[i].kills[j] = 0;
 			}
 		}
+
+#ifndef PLATFORM_N64
+		// if we're a server, signal to clients that the level is changing
+		netServerStageStart();
+#endif
 	}
 
 	mpSetDefaultNamesIfEmpty();
@@ -1082,6 +1091,12 @@ Gfx *lvRender(Gfx *gdl)
 #endif
 		struct player *player;
 		struct chrdata *chr;
+
+#ifndef PLATFORM_N64
+		if (g_NetMode) {
+			forcesingleplayer = true;
+		}
+#endif
 
 		playercount = forcesingleplayer ? 1 : PLAYERCOUNT();
 

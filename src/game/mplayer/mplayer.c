@@ -28,6 +28,9 @@
 #include "lib/lib_317f0.h"
 #include "data.h"
 #include "types.h"
+#ifndef PLATFORM_N64
+#include "net/net.h"
+#endif
 
 // bss
 struct chrdata *g_MpAllChrPtrs[MAX_MPCHRS];
@@ -176,14 +179,29 @@ void mpStartMatch(void)
 	s32 numplayers = 0;
 	s32 stagenum;
 
-	mpConfigureQuickTeamSimulants();
-
-	if (!challengeIsFeatureUnlocked(MPFEATURE_ONEHITKILLS)) {
-		g_MpSetup.options &= ~MPOPTION_ONEHITKILLS;
+#ifndef PLATFORM_N64
+	if (g_NetMode == NETMODE_SERVER) {
+		g_MpSetup.chrslots &= ~0x000f;
+		g_MpSetup.chrslots |= 1;
+		for (s32 i = 1; i < g_NetMaxClients; ++i) {
+			if (g_NetClients[i].state >= CLSTATE_LOBBY) {
+				g_MpSetup.chrslots |= (1 << i);
+			}
+		}
 	}
 
-	if (!challengeIsFeatureUnlocked(MPFEATURE_SLOWMOTION)) {
-		g_MpSetup.options &= ~(MPOPTION_SLOWMOTION_ON | MPOPTION_SLOWMOTION_SMART);
+	if (g_NetMode != NETMODE_CLIENT)
+#endif
+	{
+		mpConfigureQuickTeamSimulants();
+
+		if (!challengeIsFeatureUnlocked(MPFEATURE_ONEHITKILLS)) {
+			g_MpSetup.options &= ~MPOPTION_ONEHITKILLS;
+		}
+
+		if (!challengeIsFeatureUnlocked(MPFEATURE_SLOWMOTION)) {
+			g_MpSetup.options &= ~(MPOPTION_SLOWMOTION_ON | MPOPTION_SLOWMOTION_SMART);
+		}
 	}
 
 	for (i = 0; i < MAX_PLAYERS; i++) {

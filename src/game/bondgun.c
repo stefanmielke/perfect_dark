@@ -12730,7 +12730,7 @@ Gfx *bgunDrawHud(Gfx *gdl)
 {
 	struct player *player = g_Vars.currentplayer;
 	s32 bottom = viGetViewTop() + viGetViewHeight() - 13;
-	s32 playercount = PLAYERCOUNT();
+	s32 playercount = LOCALPLAYERCOUNT();
 	s32 playernum = g_Vars.currentplayernum;
 	struct gunctrl *ctrl;
 	s32 secs60;

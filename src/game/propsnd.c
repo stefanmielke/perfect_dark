@@ -338,7 +338,7 @@ void psTickChannel(s32 channelnum)
 
 		if (lvIsPaused()
 				|| (mpIsPaused() && (channel->flags2 & PSFLAG2_MPPAUSABLE))
-				|| (mpIsPaused() && PLAYERCOUNT() == 1)) {
+				|| (mpIsPaused() && LOCALPLAYERCOUNT() == 1)) {
 			channel->currentvol = -1;
 			newvol = 0;
 		}
@@ -1171,7 +1171,7 @@ s32 psCalculateVol(struct coord *pos, f32 dist1, f32 dist2, f32 dist3, RoomNum *
 	}
 
 	// Figure out which player is closest and store their distance in playerdist
-	for (i = 0; i < PLAYERCOUNT(); i++) {
+	for (i = 0; i < LOCALPLAYERCOUNT(); i++) {
 		struct player *player = g_Vars.players[i];
 		s32 camroom;
 
@@ -1283,7 +1283,7 @@ s32 psCalculatePan2(struct coord *pos, s32 arg1, f32 arg2, struct pschannel *cha
 	s32 degrees;
 	f32 f2;
 
-	if (PLAYERCOUNT() < 2) {
+	if (LOCALPLAYERCOUNT() < 2) {
 		struct coord *campos = &g_Vars.currentplayer->cam_pos;
 		f32 sp3c;
 		f32 sp38;

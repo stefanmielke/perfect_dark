@@ -50,6 +50,7 @@
 #include "types.h"
 #ifndef PLATFORM_N64
 #include "video.h"
+#include "net/net.h"
 #define BLUR_OFS 10
 #else
 #define BLUR_OFS 30
@@ -5375,6 +5376,19 @@ Gfx *menuRender(Gfx *gdl)
 
 			gdl = text0f153628(gdl);
 
+#ifndef PLATFORM_N64
+			if (g_NetMode) {
+				if (g_NetMode == NETMODE_SERVER) {
+					sprintf(text, "Server: %d/%d", g_NetNumClients, g_NetMaxClients);
+				} else {
+					sprintf(text, "Client: ID %u", g_NetLocalClient->id);
+				}
+				x = viewleft + 2;
+				y = viewtop + 2;
+				colour = 0x5070ffff;
+				gdl = textRenderProjected(gdl, &x, &y, text, g_CharsHandelGothicSm, g_FontHandelGothicSm, colour, viGetWidth(), viGetHeight(), 0, 0);
+			} else
+#endif
 			for (i = 0; i < MAX_PLAYERS; i++) {
 				// Figure out what text will be displayed. The text calculated
 				// here is for measuring purposes only and isn't rendered.

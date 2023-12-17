@@ -39,6 +39,9 @@
 #include "lib/lib_317f0.h"
 #include "data.h"
 #include "types.h"
+#ifndef PLATFORM_N64
+#include "net/net.h"
+#endif
 
 s16 *g_RoomPropListChunkIndexes;
 struct roomproplistchunk *g_RoomPropListChunks;
@@ -1500,6 +1503,13 @@ bool currentPlayerInteract(bool eyespy)
 	prop = propFindForInteract(eyespy);
 
 	if (prop) {
+#ifndef PLATFORM_N64
+		// if we aren't the authority, don't do anything
+		if (g_NetMode == NETMODE_CLIENT) {
+			return false;
+		}
+#endif
+
 		switch (prop->type) {
 		case PROPTYPE_OBJ:
 		case PROPTYPE_WEAPON:

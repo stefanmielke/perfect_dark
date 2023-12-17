@@ -10,6 +10,9 @@
 #include "lib/rng.h"
 #include "data.h"
 #include "types.h"
+#ifndef PLATFORM_N64
+#include "net/net.h"
+#endif
 
 void playermgrInit(void)
 {
@@ -59,6 +62,12 @@ void playermgrAllocatePlayers(s32 count)
 		for (i = 0; i < count; i++) {
 			playermgrAllocatePlayer(i);
 		}
+
+#ifndef PLATFORM_N64
+		if (g_NetMode) {
+			netPlayersAllocate();
+		}
+#endif
 
 		setCurrentPlayerNum(0);
 		g_Vars.bond = g_Vars.players[g_Vars.bondplayernum];
@@ -643,6 +652,12 @@ void playermgrAllocatePlayer(s32 index)
 	g_Vars.players[index]->disguised = false;
 	g_Vars.players[index]->dostartnewlife = false;
 
+#ifndef PLATFORM_N64
+	g_Vars.players[index]->client = NULL;
+	g_Vars.players[index]->ucmd = (g_NetMode == NETMODE_SERVER) ? UCMD_FL_FORCEMASK : 0;
+	g_Vars.players[index]->isremote = false;
+#endif
+
 	g_Vars.bondvisible = true;
 	g_Vars.bondcollisions = true;
 }
@@ -805,6 +820,14 @@ void playermgrShuffle(void)
 	for (i = 0; i < MAX_PLAYERS; i++) {
 		g_Vars.playerorder[i] = i;
 	}
+
+#ifndef PLATFORM_N64
+	if (g_NetMode) {
+		// don't shuffle in netgames
+		// why is this a thing anyway?
+		return;
+	}
+#endif
 
 	// Randomly swap numbers with later elements
 	for (i = 0; i < MAX_PLAYERS - 1; i++) {

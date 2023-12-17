@@ -27,6 +27,9 @@
 #include "lib/snd.h"
 #include "data.h"
 #include "types.h"
+#ifndef PLATFORM_N64
+#include "net/net.h"
+#endif
 
 u8 g_FileState = 0;
 u8 var80062944 = 0;
@@ -354,6 +357,12 @@ void menuTick(void)
 						// 8MB - no restrictions on joining
 						canjoin = true;
 					}
+
+#ifndef PLATFORM_N64
+					if (g_NetMode) {
+						canjoin = false;
+					}
+#endif
 
 					if (g_BossFile.locktype == MPLOCKTYPE_CHALLENGE) {
 						g_PlayerConfigsArray[i].base.team = 0;

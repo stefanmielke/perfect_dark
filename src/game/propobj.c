@@ -77,6 +77,9 @@
 #include "textures.h"
 #include "types.h"
 #include "string.h"
+#ifndef PLATFORM_N64
+#include "net/net.h"
+#endif
 
 void rng2SetSeed(u32 seed);
 
@@ -15354,6 +15357,13 @@ void objTakeGunfire(struct defaultobj *obj, f32 damage, struct coord *pos, s32 w
 
 void objDamage(struct defaultobj *obj, f32 damage, struct coord *pos, s32 weaponnum, s32 playernum)
 {
+#ifndef PLATFORM_N64
+	// if we aren't the authority, don't do anything
+	if (g_NetMode == NETMODE_CLIENT) {
+		return;
+	}
+#endif
+
 	// Store the attacker playernum into the object's "hidden" field
 #if VERSION >= VERSION_NTSC_1_0
 	// ...but not for deployed laptop guns in multiplayer, because those bits
@@ -17471,6 +17481,13 @@ s32 objTestForPickup(struct prop *prop)
 	if (obj->hidden & OBJHFLAG_DELETING) {
 		return TICKOP_NONE;
 	}
+
+#ifndef PLATFORM_N64
+	// if we aren't the authority, don't do anything
+	if (g_NetMode == NETMODE_CLIENT) {
+		return TICKOP_NONE;
+	}
+#endif
 
 	if (func0f085194(obj) && obj->type != OBJTYPE_HAT) {
 		if (obj->flags & OBJFLAG_UNCOLLECTABLE) {
@@ -20943,7 +20960,7 @@ Gfx *countdownTimerRender(Gfx *gdl)
 		u32 stack;
 		s32 viewright = viGetViewLeft() + (viGetViewWidth() >> 1);
 		s32 y = viGetViewTop() + viGetViewHeight() - 18;
-		s32 playercount = PLAYERCOUNT();
+		s32 playercount = LOCALPLAYERCOUNT();
 		char *fmt = ":\n";
 
 		if (playercount == 2) {

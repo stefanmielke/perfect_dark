@@ -56,6 +56,10 @@
 #include "lib/vi.h"
 #include "data.h"
 #include "types.h"
+#ifndef PLATFORM_N64
+#include "net/net.h"
+#include "net/netmsg.h"
+#endif
 
 s32 g_RecentQuipsPlayed[5];
 u32 var8009cd84;
@@ -4271,6 +4275,13 @@ void chrDamage(struct chrdata *chr, f32 damage, struct coord *vector, struct gse
 	bool canchoke = true;
 	s32 aplayernum = -1;
 	s32 choketype = CHOKETYPE_NONE;
+
+#ifndef PLATFORM_N64
+	if (g_NetMode == NETMODE_CLIENT) {
+		// don't do anything if we're not the authority
+		return;
+	}
+#endif
 
 	if (hitpart == HITPART_HEAD) {
 		choketype = CHOKETYPE_GURGLE;
@@ -15287,6 +15298,68 @@ void func0f04b740(void)
 	// empty
 }
 
+bool chrSetPos(struct chrdata *chr, struct coord *pos, RoomNum *rooms, f32 theta, bool findground)
+{
+	const f32 angle = BADDEG2RAD(360.f - theta);
+
+	if (findground) {
+		const u32 oldhidden = chr->hidden;
+		chr->hidden |= CHRHFLAG_WARPONSCREEN;
+		const bool ret = chrMoveToPos(chr, pos, rooms, angle, true);
+		if ((oldhidden & CHRHFLAG_WARPONSCREEN) == 0) {
+			chr->hidden &= ~CHRHFLAG_WARPONSCREEN;
+		}
+	}
+
+	bool newrooms = false;
+	for (s32 i = 0; i < ARRAYCOUNT(chr->prop->rooms) && rooms[i] >= 0; ++i) {
+		if (chr->prop->rooms[i] != rooms[i]) {
+			newrooms = true;
+			break;
+		}
+	}
+
+	propSetPerimEnabled(chr->prop, false);
+
+	chr->prop->pos = *pos;
+
+	const f32 ground = cdFindGroundInfoAtCyl(pos, chr->radius, rooms, &chr->floorcol,
+			&chr->floortype, NULL, &chr->floorroom, NULL, NULL);
+
+	chr->ground = ground;
+	chr->manground = ground;
+	chr->sumground = ground * (PAL ? 8.4175090789795f : 9.999998f);
+
+	if (newrooms) {
+		propDeregisterRooms(chr->prop);
+		roomsCopy(rooms, chr->prop->rooms);
+		chr0f0220ac(chr);
+	}
+
+	modelSetRootPosition(chr->model, pos);
+
+	const u16 nodetype = chr->model->definition->rootnode->type;
+
+	if ((nodetype & 0xff) == MODELNODETYPE_CHRINFO) {
+		union modelrwdata *rwdata = modelGetNodeRwData(chr->model, chr->model->definition->rootnode);
+		rwdata->chrinfo.ground = ground;
+	}
+
+	chrSetLookAngle(chr, angle);
+
+	if (chr->prop->type == PROPTYPE_PLAYER) {
+		struct player *player = g_Vars.players[playermgrGetPlayerNumByProp(chr->prop)];
+		player->vv_manground = ground;
+		player->vv_ground = ground;
+		player->vv_theta = theta;
+		player->unk1c64 = 1;
+	}
+
+	propSetPerimEnabled(chr->prop, true);
+
+	return true;
+}
+
 bool chrMoveToPos(struct chrdata *chr, struct coord *pos, RoomNum *rooms, f32 angle, bool force)
 {
 	struct coord pos2;
@@ -15343,6 +15416,12 @@ bool chrMoveToPos(struct chrdata *chr, struct coord *pos, RoomNum *rooms, f32 an
 			player->vv_verta = 0;
 			player->unk1c64 = 1;
 		}
+
+#ifndef PLATFORM_N64
+		if (g_NetMode == NETMODE_SERVER && player->isremote) {
+			player->ucmd |= UCMD_FL_FORCEPOS | UCMD_FL_FORCEANGLE | UCMD_FL_FORCEGROUND;
+		}
+#endif
 
 		result = true;
 	}

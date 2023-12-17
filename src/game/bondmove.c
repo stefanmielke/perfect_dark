@@ -42,6 +42,8 @@
 #include <math.h>
 #include "input.h"
 #include "video.h"
+#include "system.h"
+#include "net/net.h"
 
 static void bgunProcessQuickDetonate(struct movedata *data, u32 c1buttons, u32 c1buttonsthisframe, u32 buttons1, u32 buttons2) {
 	if ((((c1buttons & (buttons1)) && (c1buttonsthisframe & (buttons2)))
@@ -103,6 +105,94 @@ static void bgunProcessInputAltButton(struct movedata *data, s8 contpad, s32 i)
 		g_Vars.currentplayer->altdowntime = 0;
 		bgun0f0a8c50();
 	}
+}
+
+static inline void bmoveProcessRemoteInput(void)
+{
+	struct player *pl = g_Vars.currentplayer;
+	struct netplayermove *inmove = &pl->client->inmove[0];
+
+	if (inmove->ucmd & UCMD_DUCK) {
+		pl->crouchpos = CROUCHPOS_DUCK;
+	} else if (inmove->ucmd & UCMD_SQUAT) {
+		pl->crouchpos = CROUCHPOS_SQUAT;
+	} else {
+		pl->crouchpos = CROUCHPOS_STAND;
+	}
+
+	pl->bondactivateorreload = 0;
+
+	if (g_NetMode == NETMODE_SERVER) {
+		if (inmove->ucmd & UCMD_ACTIVATE) {
+			pl->bondactivateorreload |= JO_ACTION_ACTIVATE;
+		}
+		if (inmove->ucmd & UCMD_RELOAD) {
+			pl->bondactivateorreload |= JO_ACTION_RELOAD;
+		}
+
+		if (pl->bondactivateorreload) {
+			bmoveHandleActivate();
+		}
+
+		bgunTickGameplay((inmove->ucmd & UCMD_FIRE) != 0);
+
+		if (g_Vars.bondvisible && (bgunIsFiring(HAND_RIGHT) || bgunIsFiring(HAND_LEFT))) {
+			f32 noiseradius = 0.f;
+			if (bgunIsFiring(HAND_RIGHT) && bgunGetNoiseRadius(HAND_RIGHT) > noiseradius) {
+				noiseradius = bgunGetNoiseRadius(HAND_RIGHT);
+			}
+			if (bgunIsFiring(HAND_LEFT) && bgunGetNoiseRadius(HAND_LEFT) > noiseradius) {
+				noiseradius = bgunGetNoiseRadius(HAND_LEFT);
+			}
+			chrsCheckForNoise(noiseradius);
+		}
+	}
+
+	bgunSetSightVisible(GUNSIGHTREASON_NOTAIMING, (inmove->ucmd & UCMD_AIMMODE) != 0);
+
+	pl->speedgo = inmove->movespeed[0];
+	pl->speedforwards = inmove->movespeed[0];
+	pl->speedstrafe = inmove->movespeed[1];
+	pl->speedsideways = inmove->movespeed[1];
+	pl->speedtheta = inmove->lookspeed[0];
+	pl->speedverta = inmove->lookspeed[1];
+	pl->vv_theta = inmove->angles[0];
+	pl->vv_verta = inmove->angles[1];
+
+	pl->crouchoffset = inmove->crouchofs;
+
+	if (pl->bondmovemode == MOVEMODE_GRAB) {
+		bgrabUpdateSpeedTheta();
+	} else if (pl->bondmovemode == MOVEMODE_WALK) {
+		if (bmoveGetCrouchPos() != CROUCHPOS_STAND) {
+			pl->speedmaxtime60 = 0;
+		}
+		bwalkSetSwayTargetf(inmove->leanofs);
+	} else if (pl->bondmovemode == MOVEMODE_BIKE) {
+		// TODO
+	}
+
+	if (inmove->movespeed[0] > 0.95f) {
+		pl->speedmaxtime60 += g_Vars.lvupdate60;
+	} else {
+		pl->speedmaxtime60 = 0;
+	}
+
+	if (pl->speedforwards > 1) {
+		pl->speedforwards = 1;
+	}
+	if (pl->speedforwards < -1) {
+		pl->speedforwards = -1;
+	}
+	if (pl->speedsideways > 1) {
+		pl->speedsideways = 1;
+	}
+	if (pl->speedsideways < -1) {
+		pl->speedsideways = -1;
+	}
+
+	pl->speedforwards *= 1.08f;
+	pl->speedforwards *= pl->speedboost;
 }
 
 #endif // PLATFORM_N64
@@ -313,6 +403,12 @@ void bmoveApplyMoveData(struct movedata *data)
 	} else if (g_Vars.currentplayer->bondmovemode == MOVEMODE_WALK) {
 		bwalkApplyMoveData(data);
 	}
+#ifndef PLATFORM_N64
+	// record some inputs if this is a local player
+	if (g_NetMode && !g_Vars.currentplayer->isremote) {
+		g_Vars.currentplayer->ucmd = 0;
+	}
+#endif
 }
 
 void bmoveUpdateSpeedTheta(void)
@@ -715,6 +811,11 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 	const f32 mlookscale = g_Vars.lvupdate240 ? (4.f / (f32)g_Vars.lvupdate240) : 4.f;
 	const bool allowmlook = (g_Vars.currentplayernum == 0) && (allowc1x || allowc1y);
 	bool allowmcross = false;
+
+	if (g_Vars.currentplayer->isremote) {
+		bmoveProcessRemoteInput();
+		return;
+	}
 #endif
 
 	controlmode = optionsGetControlMode(g_Vars.currentplayerstats->mpindex);
@@ -1025,7 +1126,7 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 					}
 
 					// Handle B button activation
-					if (allowc1buttons && controlmode != CONTROLMODE_PC) {
+					if (allowc1buttons && controlmode < CONTROLMODE_PC) {
 						for (i = 0; i < numsamples; i++) {
 							if (joyGetButtonsOnSample(i, contpad1, c1allowedbuttons & B_BUTTON)
 									|| joyGetButtonsOnSample(i, contpad2, c2allowedbuttons & B_BUTTON)) {
@@ -1493,7 +1594,7 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 						for (i = 0; i < numsamples; i++) {
 							if (joyGetButtonsOnSample(i, contpad1, c1allowedbuttons & usemask)) {
 								if (g_Vars.currentplayer->usedowntime >= -1) {
-									if (controlmode != CONTROLMODE_PC) {
+									if (controlmode < CONTROLMODE_PC) {
 										if (joyGetButtonsPressedOnSample(i, contpad1, shootbuttons & c1allowedbuttons)
 												&& g_Vars.currentplayer->usedowntime >= 0
 												&& bgunConsiderToggleGunFunction(g_Vars.currentplayer->usedowntime, true, false, 0) != USETIMER_CONTINUE) {
@@ -1518,7 +1619,7 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 										}
 									}
 								} else {
-									if ((controlmode != CONTROLMODE_PC) && g_Vars.currentplayer->usedowntime >= -2) {
+									if ((controlmode < CONTROLMODE_PC) && g_Vars.currentplayer->usedowntime >= -2) {
 										bgunConsiderToggleGunFunction(g_Vars.currentplayer->usedowntime, false, false, 0);
 									}
 								}
@@ -1664,7 +1765,7 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 #ifdef PLATFORM_N64
 					if (allowc1buttons) {
 #else
-					if (allowc1buttons && (controlmode != CONTROLMODE_PC || (PLAYER_EXTCFG().crouchmode & CROUCHMODE_ANALOG))) {
+					if (allowc1buttons && (controlmode < CONTROLMODE_PC || (PLAYER_EXTCFG().crouchmode & CROUCHMODE_ANALOG))) {
 #endif
 						for (i = 0; i < numsamples; i++) {
 							if (!canmanualzoom && aimonhist[i]) {
@@ -1748,7 +1849,7 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 					}
 
 					// Handle mine detonation
-					if (controlmode != CONTROLMODE_PC) {
+					if (controlmode < CONTROLMODE_PC) {
 						if ((((c1buttons & invbuttons) && (c1buttonsthisframe & B_BUTTON))
 								|| ((c1buttons & B_BUTTON) && (c1buttonsthisframe & invbuttons)))
 								&& weaponnum == WEAPON_REMOTEMINE) {
@@ -1781,7 +1882,7 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 					movedata.triggeron = g_Vars.currentplayer->waitforzrelease == false
 						&& (c1buttons & shootbuttons)
 						&& g_Vars.currentplayer->pausemode == PAUSEMODE_UNPAUSED;
-					if (controlmode != CONTROLMODE_PC) {
+					if (controlmode < CONTROLMODE_PC) {
 						movedata.triggeron = movedata.triggeron && ((c1buttons & invbuttons) == 0);
 					}
 				}

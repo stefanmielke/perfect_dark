@@ -33,6 +33,9 @@
 #include "lib/str.h"
 #include "data.h"
 #include "types.h"
+#ifndef PLATFORM_N64
+#include "net/net.h"
+#endif
 
 u8 g_InventoryWeapon;
 
@@ -41,6 +44,7 @@ struct menudialogdef g_CiControlPlayer2MenuDialog;
 struct menudialogdef g_CinemaMenuDialog;
 #ifndef PLATFORM_N64
 extern struct menudialogdef g_ExtendedMenuDialog;
+extern struct menudialogdef g_NetMenuDialog;
 #endif
 
 char *menuTextCurrentStageName(struct menuitem *item)
@@ -4865,6 +4869,11 @@ MenuDialogHandlerResult menudialogMainMenu(s32 operation, struct menudialogdef *
 	switch (operation) {
 	case MENUOP_OPEN:
 		g_Menus[g_MpPlayerNum].main.unke2c = 0;
+#ifndef PLATFORM_N64
+		if (g_NetMode) {
+			netDisconnect();
+		}
+#endif
 		break;
 	case MENUOP_TICK:
 		if (g_Menus[g_MpPlayerNum].curdialog &&
@@ -4942,24 +4951,36 @@ struct menuitem g_MainMenuMenuItems[] = {
 		0x00000005,
 		menuhandlerMainMenuCounterOperative,
 	},
+#ifndef PLATFORM_N64
+	{
+		MENUITEMTYPE_SELECTABLE,
+		4,
+		MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUITEMFLAG_BIGFONT | MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Network Game",
+		0x00000006,
+		(void *)&g_NetMenuDialog,
+	},
+#endif
 	{
 		MENUITEMTYPE_SELECTABLE,
 		0,
 		MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUITEMFLAG_BIGFONT,
 		L_OPTIONS_187, // "Change Agent..."
-		0x00000006,
+		0x00000007,
 		(void *)&g_ChangeAgentMenuDialog,
 	},
+/*
 #ifndef PLATFORM_N64
 	{
 		MENUITEMTYPE_SELECTABLE,
 		0,
 		MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUITEMFLAG_BIGFONT | MENUITEMFLAG_LITERAL_TEXT,
 		(uintptr_t)"Exit Game",
-		0x00000007,
+		0x00000008,
 		(void *)&g_ExitGameMenuDialog,
 	},
 #endif
+*/
 	{ MENUITEMTYPE_END },
 };
 

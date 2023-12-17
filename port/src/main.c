@@ -17,6 +17,7 @@
 #include "mod.h"
 #include "system.h"
 #include "utils.h"
+#include "net/net.h"
 
 u32 g_OsMemSize = 0;
 s32 g_OsMemSizeMb = 16;
@@ -104,6 +105,7 @@ int main(int argc, const char **argv)
 	inputInit();
 	audioInit();
 	romdataInit();
+	netInit();
 
 	gameInit();
 

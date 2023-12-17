@@ -72,6 +72,8 @@
 #include "lib/str.h"
 #include "data.h"
 #include "types.h"
+#include "net/net.h"
+#include "net/netmsg.h"
 
 extern u8 *g_MempHeap;
 extern u32 g_MempHeapSize;
@@ -608,6 +610,8 @@ void mainEndStage(void)
 			endscreenPrepare();
 			musicStartMenu();
 		}
+
+		netServerStageEnd();
 	}
 
 	g_MainIsEndscreen = true;

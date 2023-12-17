@@ -25,6 +25,7 @@
 #include "audio.h"
 #include "input.h"
 #include "mixer.h"
+#include "net/net.h"
 
 /*
  * private typedefs and defines
@@ -240,6 +241,7 @@ void schedSubmitTask(OSSched *sc, OSScTask *t)
 void schedStartFrame(OSSched *sc)
 {
 	videoStartFrame();
+	netStartFrame();
 }
 
 void schedAudioFrame(OSSched *sc)
@@ -293,6 +295,8 @@ void schedEndFrame(OSSched *sc)
 	joyStartReadData(&g_PiMesgQueue);
 	joyReadData();
 	joy00014238();
+
+	netEndFrame();
 
 	sndHandleRetrace();
 	schedAudioFrame(sc);

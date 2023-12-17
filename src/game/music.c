@@ -343,7 +343,7 @@ bool musicIsAnyPlayerInAmbientRoom(void)
 		return false;
 	}
 
-	for (i = 0; i < PLAYERCOUNT(); i++) {
+	for (i = 0; i < LOCALPLAYERCOUNT(); i++) {
 		if (g_Vars.players[i]->prop
 				&& g_Vars.players[i]->prop->rooms
 				&& g_Vars.players[i]->prop->rooms[0] != -1) {

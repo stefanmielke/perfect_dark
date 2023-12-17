@@ -27,7 +27,67 @@
 #include "data.h"
 #include "types.h"
 #ifndef PLATFORM_N64
-extern f32 fabsf(f32);
+#include "net/net.h"
+#include "system.h"
+
+static void bwalkUpdateRemote(void)
+{
+	struct player *pl = g_Vars.currentplayer;
+	const struct netplayermove *inmove = &pl->client->inmove[0];
+	const struct netplayermove *inmoveprev = &pl->client->inmove[1];
+	struct coord delta, target;
+	f32 spc8, spc4;
+	s32 moveticks = inmove->tick - inmoveprev->tick;
+	if (moveticks > g_NetInterpTicks) {
+		moveticks = g_NetInterpTicks;
+	}
+
+	const bool forcepos = !inmoveprev->tick || !moveticks ||
+		(inmove->ucmd & UCMD_FL_FORCEPOS) ||
+		(fabsf(pl->prop->pos.x - inmove->pos.x) > 256.f) ||
+		(fabsf(pl->prop->pos.y - inmove->pos.y) > 256.f) ||
+		(fabsf(pl->prop->pos.z - inmove->pos.z) > 256.f);
+
+	pl->client->inmovetick = inmove->tick;
+
+	pl->bondshotspeed.x = 0.f;
+	pl->bondshotspeed.y = 0.f;
+	pl->bondshotspeed.z = 0.f;
+	pl->bondbreathing = 0.f;
+
+	if (forcepos) {
+		// no interpolation, set position and lock the lad in place
+		delta.x = 0.f;
+		delta.y = 0.f;
+		delta.z = 0.f;
+		pl->prop->pos = inmove->pos;
+		pl->client->lerpticks = g_NetInterpTicks + g_NetExterpTicks;
+	} else if (pl->client->lerpticks <= moveticks) {
+		// lerp towards the new position
+		const f32 t = (f32)pl->client->lerpticks / (f32)moveticks;
+		target.x = inmoveprev->pos.x + (inmove->pos.x - inmoveprev->pos.x) * t;
+		target.y = inmoveprev->pos.y + (inmove->pos.y - inmoveprev->pos.y) * t;
+		target.z = inmoveprev->pos.z + (inmove->pos.z - inmoveprev->pos.z) * t;
+		delta.x = target.x - pl->prop->pos.x;
+		delta.y = target.y - pl->prop->pos.y;
+		delta.z = target.z - pl->prop->pos.z;
+		pl->client->lerpticks += g_Vars.lvupdate60;
+	} else if (pl->client->lerpticks <= moveticks + g_NetExterpTicks) {
+		// try extrapolating based on inputs for a while
+		pl->client->lerpticks += g_Vars.lvupdate60;
+		bwalk0f0c69b8();
+		return;
+	}	else {
+		// we're too far gone, lock position
+		delta.x = 0.f;
+		delta.y = 0.f;
+		delta.z = 0.f;
+		pl->prop->pos = inmove->pos;
+	}
+
+	bwalkUpdateCrouchOffset();
+	bwalk0f0c63bc(&delta, g_Vars.currentplayer->swaytarget == 0.0f, CDTYPE_ALL);
+}
 #endif
 
 void bwalkInit(void)
@@ -1767,7 +1827,14 @@ void bwalkTick(void)
 	bwalkUpdatePrevPos();
 	bwalkUpdateTheta();
 	bmoveUpdateVerta();
+
+#ifndef PLATFORM_N64
+	if (g_Vars.currentplayer->isremote) {
+		bwalkUpdateRemote();
+	} else
+#endif
 	bwalk0f0c69b8();
+
 	bwalkUpdateVertical();
 
 #if VERSION >= VERSION_NTSC_1_0

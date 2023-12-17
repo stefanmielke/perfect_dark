@@ -2820,6 +2820,9 @@ struct player {
 	/*0x1c72*/ s16 amdowntime; // for alt-modes, used like invdowntime and amdowntime
 #ifndef PLATFORM_N64
 	/*0x1c74*/ f32 swivelpos[2];
+	/*0x1c84*/ u32 ucmd;
+	/*0x1c88*/ bool isremote;
+	/*0x1c8c*/ struct netclient *client;
 #endif
 };
 
@@ -4002,7 +4005,7 @@ struct gamefile {
 };
 
 struct mpchrconfig {
-	/*0x00*/ char name[15];
+	/*0x00*/ char name[MAX_PLAYERNAME];
 	/*0x0f*/ u8 mpheadnum;
 	/*0x10*/ u8 mpbodynum;
 	/*0x11*/ u8 team;
@@ -4046,6 +4049,9 @@ struct mpplayerconfig {
 	/*0x96*/ u8 newtitle;
 	/*0x97*/ u8 gunfuncs[6];
 	/*0x9d*/ u8 handicap;
+#ifndef PLATFORM_N64
+	/*0x9e*/ struct netclient *client;
+#endif
 };
 
 struct mpbotconfig {

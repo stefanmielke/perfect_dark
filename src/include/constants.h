@@ -28,6 +28,7 @@
 #define MAX_ROOMPROPLISTCHUNKS 256
 #define MAX_SQUADRONS          16
 #define MAX_TEAMS              8
+#define MAX_PLAYERNAME         15
 
 #define NUM_BOTDIFFS          6
 #define NUM_CYCLEABLE_WEAPONS 45
@@ -695,6 +696,7 @@
 #define CONTROLMODE_23 6
 #define CONTROLMODE_24 7
 #define CONTROLMODE_PC 8 // "pc port" controls; enabled in the .ini file
+#define CONTROLMODE_NA 9 // dummy controls for remote players
 
 #define COUNTDOWNTIMERREASON_AI        0x01
 #define COUNTDOWNTIMERREASON_NOCONTROL 0x10
@@ -4682,6 +4684,8 @@ enum weaponnum {
 #define BUTTON_ACCEPT BUTTON_ACCEPT_WPNFORWARD
 #define BUTTON_WPNFORWARD BUTTON_ACCEPT_WPNFORWARD
 
+#define LOCALPLAYERCOUNT() PLAYERCOUNT()
+
 #else
 
 // xbla behavior
@@ -4712,6 +4716,12 @@ enum weaponnum {
 #define CROUCHMODE_ANALOG 1 // analog crouch like on n64
 #define CROUCHMODE_TOGGLE 2 // press the crouch buttons to toggle stance
 #define CROUCHMODE_TOGGLE_ANALOG (CROUCHMODE_ANALOG | CROUCHMODE_TOGGLE)
+
+#define NETMODE_NONE 0
+#define NETMODE_SERVER 1
+#define NETMODE_CLIENT 2
+
+#define LOCALPLAYERCOUNT() (g_NetMode ? 1 : PLAYERCOUNT())
 
 #endif
 
