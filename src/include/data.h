@@ -548,6 +548,8 @@ extern s32 g_BlurFbCapTimer;
 extern bool g_BlurFbDirty;
 extern s32 g_TickRateDiv;
 extern s32 g_MusicDisableMpDeath;
+extern s32 g_BgunGeMuzzleFlashes;
+
 extern s32 g_NetMode;
 
 #define PLAYER_EXTCFG() g_PlayerExtCfg[g_Vars.currentplayerstats->mpindex & 3]

@@ -1275,7 +1275,8 @@ Gfx *amRender(Gfx *gdl)
 #endif
 
 #ifndef PLATFORM_N64
-	if (LOCALPLAYERCOUNT() == 1) {
+	const s32 playercount = LOCALPLAYERCOUNT();
+	if (playercount < 2 || (playercount == 2 && optionsGetScreenSplit() == SCREENSPLIT_HORIZONTAL)) {
 		gSPSetExtraGeometryModeEXT(gdl++, G_ASPECT_CENTER_EXT);
 	}
 #endif
