@@ -24,6 +24,7 @@
 #include "video.h"
 #include "audio.h"
 #include "input.h"
+#include "console.h"
 #include "mixer.h"
 #include "net/net.h"
 
@@ -291,6 +292,7 @@ void schedEndFrame(OSSched *sc)
 	}
 
 	inputUpdate();
+	conTick();
 
 	joyStartReadData(&g_PiMesgQueue);
 	joyReadData();

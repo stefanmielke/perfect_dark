@@ -72,6 +72,7 @@
 #include "lib/str.h"
 #include "data.h"
 #include "types.h"
+#include "console.h"
 #include "net/net.h"
 #include "net/netmsg.h"
 
@@ -558,6 +559,8 @@ void mainTick(void)
 			if (debugGetProfileMode() >= 2) {
 				gdl = profileRender(gdl);
 			}
+
+			gdl = conRender(gdl);
 
 			gDPFullSync(gdl++);
 			gSPEndDisplayList(gdl++);

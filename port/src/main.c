@@ -16,6 +16,7 @@
 #include "config.h"
 #include "mod.h"
 #include "system.h"
+#include "console.h"
 #include "utils.h"
 #include "net/net.h"
 
@@ -39,8 +40,6 @@ u8 g_VmShowStats = 0;
 s32 g_TickRateDiv = 1;
 
 s32 g_SkipIntro = false;
-
-extern s32 g_StageNum;
 
 s32 bootGetMemSize(void)
 {
@@ -84,6 +83,7 @@ static void gameInit(void)
 static void cleanup(void)
 {
 	sysLogPrintf(LOG_NOTE, "shutdown");
+	netDisconnect();
 	inputSaveBinds();
 	configSave(CONFIG_PATH);
 	crashShutdown();
@@ -98,6 +98,7 @@ int main(int argc, const char **argv)
 		crashInit();
 	}
 
+	conInit();
 	sysInit();
 	fsInit();
 	configInit();
