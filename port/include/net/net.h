@@ -98,10 +98,9 @@ extern s32 g_NetMode;
 
 // net frame, ticks at 60 fps, starts at 0 when the server is started
 extern u32 g_NetTick;
-
 extern u32 g_NetInterpTicks;
-
 extern u32 g_NetNextSyncId;
+extern s32 g_NetDebugDraw;
 
 extern s32 g_NetMaxClients;
 extern s32 g_NetNumClients;
@@ -130,5 +129,7 @@ void netServerStageEnd(void);
 
 void netPlayersAllocate(void);
 void netSyncIdsAllocate(void);
+
+Gfx *netDebugRender(Gfx *gdl);
 
 #endif // _IN_NET_H

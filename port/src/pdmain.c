@@ -561,6 +561,7 @@ void mainTick(void)
 			}
 
 			gdl = conRender(gdl);
+			gdl = netDebugRender(gdl);
 
 			gDPFullSync(gdl++);
 			gSPEndDisplayList(gdl++);

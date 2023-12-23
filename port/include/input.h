@@ -35,8 +35,12 @@ enum virtkey {
   VK_GRAVE = 53,
   VK_COMMA = 54,
   VK_PERIOD = 55,
+  VK_F1 = 58,
+  VK_F9 = 66,
   VK_DELETE = 76,
+  VK_LCTRL = 224,
   VK_LSHIFT = 225,
+  VK_RCTRL = 228,
   VK_RSHIFT = 229,
 
   /* same order as SDL mouse buttons */
@@ -220,6 +224,9 @@ void inputStopTextInput(void);
 
 void inputClearLastTextChar(void);
 char inputGetLastTextChar(void);
+
+void inputClearClipboard(void);
+const char *inputGetClipboard(void);
 
 // get/set Input.MouseDefaultLocked
 s32 inputGetMouseDefaultLocked(void);

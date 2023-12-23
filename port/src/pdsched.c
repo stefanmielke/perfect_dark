@@ -242,7 +242,9 @@ void schedSubmitTask(OSSched *sc, OSScTask *t)
 void schedStartFrame(OSSched *sc)
 {
 	videoStartFrame();
-	netStartFrame();
+	if (g_Vars.diffframe60) {
+		netStartFrame();
+	}
 }
 
 void schedAudioFrame(OSSched *sc)
@@ -273,6 +275,8 @@ void schedAudioFrame(OSSched *sc)
  */
 void schedEndFrame(OSSched *sc)
 {
+	static bool netDebugKey = false;
+
 	sc->frameCount++;
 
 #if PAL
@@ -294,11 +298,19 @@ void schedEndFrame(OSSched *sc)
 	inputUpdate();
 	conTick();
 
+	const bool newKey = inputKeyPressed(VK_F9);
+	if (!netDebugKey && newKey) {
+		g_NetDebugDraw = !g_NetDebugDraw;
+	}
+	netDebugKey = newKey;
+
 	joyStartReadData(&g_PiMesgQueue);
 	joyReadData();
 	joy00014238();
 
-	netEndFrame();
+	if (g_Vars.diffframe60) {
+		netEndFrame();
+	}
 
 	sndHandleRetrace();
 	schedAudioFrame(sc);

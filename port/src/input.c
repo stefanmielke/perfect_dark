@@ -84,6 +84,8 @@ static s32 lastKey = 0;
 static char lastChar = 0;
 static s32 textInput = 0;
 
+static char *clipboardText = NULL;
+
 static const char *ckNames[CK_TOTAL_COUNT] = {
 	"R_CBUTTONS",
 	"L_CBUTTONS",
@@ -1279,6 +1281,25 @@ void inputClearLastTextChar(void)
 char inputGetLastTextChar(void)
 {
 	return lastChar;
+}
+
+void inputClearClipboard(void)
+{
+	if (clipboardText) {
+		SDL_free(clipboardText);
+		clipboardText = NULL;
+	}
+}
+
+const char *inputGetClipboard(void)
+{
+	if (!clipboardText) {
+		char *text = SDL_GetClipboardText();
+		if (text) {
+			clipboardText = text;
+		}
+	}
+	return clipboardText;
 }
 
 void inputStopTextInput(void)

@@ -14,7 +14,9 @@
 #include "game/hudmsg.h"
 #include "game/playermgr.h"
 #include "game/bondgun.h"
+#include "game/game_1531a0.h"
 #include "lib/main.h"
+#include "lib/vi.h"
 #include "config.h"
 #include "system.h"
 #include "console.h"
@@ -23,12 +25,12 @@
 s32 g_NetMode = NETMODE_NONE;
 
 u32 g_NetTick = 0;
-
 u32 g_NetInterpTicks = 6;
 
-s32 g_NetSimPacketLoss = 0;
-
 u32 g_NetNextSyncId = 1;
+
+s32 g_NetSimPacketLoss = 0;
+s32 g_NetDebugDraw = 0;
 
 s32 g_NetMaxClients = NET_MAX_CLIENTS;
 s32 g_NetNumClients = 0;
@@ -759,4 +761,28 @@ void netChat(const char *text)
 	} else {
 		netmsgClcChatWrite(&g_NetMsgRel, tmp);
 	}
+}
+
+Gfx *netDebugRender(Gfx *gdl)
+{
+	char tmp[256];
+
+	if (!g_NetMode || !g_NetDebugDraw) {
+		return gdl;
+	}
+
+	gdl = text0f153628(gdl);
+	gSPSetExtraGeometryModeEXT(gdl++, G_ASPECT_LEFT_EXT);
+
+	s32 x = 2;
+	s32 y = viGetHeight() - 1 - 4*8;
+	snprintf(tmp, sizeof(tmp), "Nettick: %u\nPing: %u\nSent: %u\nRecv: %u\n",
+		g_NetTick, g_NetLocalClient->peer ? enet_peer_get_rtt(g_NetLocalClient->peer) : 0,
+		enet_host_get_bytes_sent(g_NetHost), enet_host_get_bytes_received(g_NetHost));
+	gdl = textRenderProjected(gdl, &x, &y, tmp, g_CharsHandelGothicXs, g_FontHandelGothicXs, 0x00ff00ff, viGetWidth(), viGetHeight(), 0, 0);
+
+	gSPClearExtraGeometryModeEXT(gdl++, G_ASPECT_CENTER_EXT);
+	gdl = text0f153780(gdl);
+
+	return gdl;
 }

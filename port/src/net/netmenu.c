@@ -239,7 +239,15 @@ static MenuItemHandlerResult menuhandlerEnterJoinAddress(s32 operation, struct m
 			break;
 	}
 
-	if (chr && g_NetJoinAddrPtr < sizeof(g_NetJoinAddr) - 1) {
+	if (chr == 'v' && (inputKeyPressed(VK_LCTRL) || inputKeyPressed(VK_RCTRL))) {
+		// try to paste in from clipboard
+		const char *clip = inputGetClipboard();
+		if (clip) {
+			strncpy(g_NetJoinAddr, clip, sizeof(g_NetJoinAddr) - 1);
+			g_NetJoinAddrPtr = strlen(g_NetJoinAddr);
+			inputClearClipboard();
+		}
+	} else if (chr && g_NetJoinAddrPtr < sizeof(g_NetJoinAddr) - 1) {
 		g_NetJoinAddr[g_NetJoinAddrPtr++] = chr;
 		g_NetJoinAddr[g_NetJoinAddrPtr + 1] = '\0';
 	}

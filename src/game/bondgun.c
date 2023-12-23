@@ -58,7 +58,6 @@
 #include "video.h"
 #include "net/net.h"
 #include "net/netmsg.h"
-#include "system.h"
 #endif
 
 #define GUNLOADSTATE_FLUX     0
@@ -11846,8 +11845,6 @@ s32 bgunConsiderToggleGunFunction(s32 usedowntime, bool trigpressed, bool fromac
 		if (fromactivemenu && bgunIsUsingSecondaryFunction() == true) {
 			g_Vars.currentplayer->hands[HAND_RIGHT].activatesecondary = true;
 		}
-
-		sysLogPrintf(LOG_NOTE, "switchan %d -> %d", bgunIsUsingSecondaryFunction(), fromdedicatedbutton);
 
 		return USETIMER_STOP;
 	case WEAPON_MAULER:
