@@ -4105,6 +4105,12 @@ bool func0f034080(struct chrdata *chr, struct modelnode *node, struct prop *prop
  */
 void chrDamageByMisc(struct chrdata *chr, f32 damage, struct coord *vector, struct gset *gset, struct prop *prop)
 {
+#ifndef PLATFORM_N64
+	if (g_NetMode == NETMODE_CLIENT) {
+		// don't do anything if we're not the authority
+		return;
+	}
+#endif
 	chrDamage(chr, damage, vector, gset, prop, HITPART_GENERAL,
 			false,     // damageshield
 			NULL,      // prop2
@@ -4118,6 +4124,12 @@ void chrDamageByMisc(struct chrdata *chr, f32 damage, struct coord *vector, stru
 
 void chrDamageByLaser(struct chrdata *chr, f32 damage, struct coord *vector, struct gset *gset, struct prop *prop)
 {
+#ifndef PLATFORM_N64
+	if (g_NetMode == NETMODE_CLIENT) {
+		// don't do anything if we're not the authority
+		return;
+	}
+#endif
 	chrDamage(chr, damage, vector, gset, prop, HITPART_GENERAL,
 			true,      // damageshield
 			chr->prop, // prop2
@@ -4131,6 +4143,12 @@ void chrDamageByLaser(struct chrdata *chr, f32 damage, struct coord *vector, str
 
 void func0f0341dc(struct chrdata *chr, f32 damage, struct coord *vector, struct gset *gset, struct prop *prop, s32 hitpart, struct prop *prop2, struct modelnode *node, struct model *model, s32 side, s16 *arg10)
 {
+#ifndef PLATFORM_N64
+	if (g_NetMode == NETMODE_CLIENT) {
+		// don't do anything if we're not the authority
+		return;
+	}
+#endif
 	chrDamage(chr, damage, vector, gset, prop, hitpart,
 			true,      // damageshield
 			prop2,     // prop2
@@ -4151,6 +4169,13 @@ void func0f034248(struct chrdata *chr, f32 damage, struct coord *vector, struct 
 	struct model *model = NULL;
 	s32 side = 0;
 	s32 hitpart = HITPART_GENERAL;
+
+#ifndef PLATFORM_N64
+	if (g_NetMode == NETMODE_CLIENT) {
+		// don't do anything if we're not the authority
+		return;
+	}
+#endif
 
 	if (chrGetShield(chr) >= 0 && chr->model) {
 		chrCalculateShieldHit(chr, &chr->prop->pos, vector, &node, &hitpart, &model, &side);
@@ -4176,6 +4201,13 @@ void chrDamageByImpact(struct chrdata *chr, f32 damage, struct coord *vector, st
 	struct model *model = NULL;
 	s32 side = 0;
 
+#ifndef PLATFORM_N64
+	if (g_NetMode == NETMODE_CLIENT) {
+		// don't do anything if we're not the authority
+		return;
+	}
+#endif
+
 	if (chrGetShield(chr) >= 0 && chr->model) {
 		chrCalculateShieldHit(chr, &chr->prop->pos, vector, &node, &hitpart, &model, &side);
 	}
@@ -4193,6 +4225,12 @@ void chrDamageByImpact(struct chrdata *chr, f32 damage, struct coord *vector, st
 
 void chrDamageByExplosion(struct chrdata *chr, f32 damage, struct coord *vector, struct prop *prop, struct coord *explosionpos)
 {
+#ifndef PLATFORM_N64
+	if (g_NetMode == NETMODE_CLIENT) {
+		// don't do anything if we're not the authority
+		return;
+	}
+#endif
 	chrDamage(chr, damage, vector, NULL, prop, HITPART_GENERAL,
 			true,      // damageshield
 			chr->prop, // prop2
@@ -4277,9 +4315,9 @@ void chrDamage(struct chrdata *chr, f32 damage, struct coord *vector, struct gse
 	s32 choketype = CHOKETYPE_NONE;
 
 #ifndef PLATFORM_N64
-	if (g_NetMode == NETMODE_CLIENT) {
-		// don't do anything if we're not the authority
-		return;
+	if (g_NetMode == NETMODE_SERVER) {
+		netmsgSvcChrDamageWrite(&g_NetMsgRel, chr, damage, vector, gset, aprop, hitpart,
+				damageshield, prop2, side, arg11, explosion, explosionpos);
 	}
 #endif
 
@@ -4852,6 +4890,12 @@ void chrDamage(struct chrdata *chr, f32 damage, struct coord *vector, struct gse
 					playerCheckIfShotInBack(prevplayernum, vector->x, vector->z);
 				}
 			}
+
+#ifndef PLATFORM_N64
+			if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->client) {
+				netmsgSvcPlayerStatsWrite(&g_NetMsgRel, g_Vars.currentplayer->client);
+			}
+#endif
 
 			setCurrentPlayerNum(prevplayernum);
 			return;

@@ -323,6 +323,11 @@ void lvReset(s32 stagenum)
 		s32 i;
 		s32 j;
 
+#ifndef PLATFORM_N64
+		// if we're a server, signal to clients that the level is changing
+		netServerStageStart();
+#endif
+
 		tilesReset();
 		bgReset(g_Vars.stagenum);
 		bgBuildTables(g_Vars.stagenum);
@@ -364,11 +369,6 @@ void lvReset(s32 stagenum)
 				g_Vars.playerstats[i].kills[j] = 0;
 			}
 		}
-
-#ifndef PLATFORM_N64
-		// if we're a server, signal to clients that the level is changing
-		netServerStageStart();
-#endif
 	}
 
 	mpSetDefaultNamesIfEmpty();
@@ -468,6 +468,12 @@ void lvReset(s32 stagenum)
 	if (IS8MB()) {
 		pheadReset();
 	}
+
+#ifndef PLATFORM_N64
+	if (g_NetMode) {
+		netSyncIdsAllocate();
+	}
+#endif
 
 	modelmgrSetLvResetting(false);
 	var80084018 = 1;
@@ -1094,7 +1100,8 @@ Gfx *lvRender(Gfx *gdl)
 
 #ifndef PLATFORM_N64
 		if (g_NetMode) {
-			forcesingleplayer = true;
+			// tick all players, we'll skip the rendering
+			forcesingleplayer = false;
 		}
 #endif
 
@@ -1678,11 +1685,20 @@ Gfx *lvRender(Gfx *gdl)
 				}
 
 				if (g_Vars.currentplayer->dostartnewlife) {
-					playerStartNewLife();
+#ifndef PLATFORM_N64
+					if (g_NetMode != NETMODE_CLIENT)
+#endif
+						playerStartNewLife();
 				}
 			}
 
 			artifactsTick();
+
+#ifndef PLATFORM_N64
+			if (g_NetMode && i) {
+				gdl = savedgdl;
+			}
+#endif
 
 			if ((g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0)
 #if VERSION >= VERSION_NTSC_1_0

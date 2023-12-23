@@ -14,6 +14,9 @@
 
 #define NET_DEFAULT_PORT 27100
 
+#define NET_NULL_CLIENT 0xFF
+#define NET_NULL_PROP 0
+
 #define NETCHAN_DEFAULT 0
 #define NETCHAN_COUNT 1
 
@@ -24,6 +27,7 @@
 #define DISCONNECT_BANNED 4
 #define DISCONNECT_TIMEOUT 5
 #define DISCONNECT_FULL 6
+#define DISCONNECT_LATE 7
 
 #define CLSTATE_DISCONNECTED 0
 #define CLSTATE_CONNECTING 1
@@ -34,13 +38,16 @@
 #define UCMD_FIRE (1 << 0)
 #define UCMD_ACTIVATE (1 << 1)
 #define UCMD_RELOAD (1 << 2)
-#define UCMD_FIREMODE (1 << 3)
-#define UCMD_AIMMODE (1 << 4)
-#define UCMD_DUCK (1 << 5)
-#define UCMD_SQUAT (1 << 6)
-#define UCMD_ZOOMIN (1 << 7)
-#define UCMD_SELECT (1 << 8)
-#define UCMD_CHAT (1 << 19)
+#define UCMD_AIMMODE (1 << 3)
+#define UCMD_DUCK (1 << 4)
+#define UCMD_SQUAT (1 << 5)
+#define UCMD_ZOOMIN (1 << 6)
+#define UCMD_SELECT (1 << 7)
+#define UCMD_EYESSHUT (1 << 8)
+#define UCMD_SECONDARY (1 << 9)
+#define UCMD_RESPAWN (1 << 27)
+#define UCMD_CHAT (1 << 28)
+#define UCMD_IMPORTANT_MASK (UCMD_FIRE | UCMD_ACTIVATE | UCMD_RELOAD | UCMD_AIMMODE | UCMD_SELECT)
 #define UCMD_FL_FORCEPOS (1 << 29)
 #define UCMD_FL_FORCEANGLE (1 << 30)
 #define UCMD_FL_FORCEGROUND (1 << 31)
@@ -52,10 +59,10 @@ struct netplayermove {
 	f32 leanofs; // analog lean value (-1 .. 1; equal to player->swaytarget / 75.f)
 	f32 crouchofs; // analog crouch value (-90 for SQUAT, 0 for STAND; player->crouchofs)
 	f32 movespeed[2]; // move inputs, [0] is forward, [1] is sideways; used mostly for animation
-	f32 lookspeed[2]; // look inputs, [0] is theta, [1] is verta
 	f32 angles[2]; // view angles, [0] is theta, [1] is verta
+	f32 crosspos[2]; // crosshair position in aiming mode
+	s8 weaponnum; // switch to this weapon if UCMD_SELECT is set
 	struct coord pos; // player position at g_NetTick == tick
-	s16 rooms[2]; // cam_room, floorroom
 };
 
 struct netclient {
@@ -93,7 +100,8 @@ extern s32 g_NetMode;
 extern u32 g_NetTick;
 
 extern u32 g_NetInterpTicks;
-extern u32 g_NetExterpTicks;
+
+extern u32 g_NetNextSyncId;
 
 extern s32 g_NetMaxClients;
 extern s32 g_NetNumClients;
@@ -115,9 +123,12 @@ s32 netStartClient(const char *addr);
 
 u32 netSend(struct netclient *dstcl, struct netbuf *buf, const s32 reliable);
 
+void netChat(const char *text);
+
 void netServerStageStart(void);
 void netServerStageEnd(void);
 
 void netPlayersAllocate(void);
+void netSyncIdsAllocate(void);
 
 #endif // _IN_NET_H

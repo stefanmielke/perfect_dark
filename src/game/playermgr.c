@@ -64,7 +64,7 @@ void playermgrAllocatePlayers(s32 count)
 		}
 
 #ifndef PLATFORM_N64
-		if (g_NetMode) {
+		if (g_NetMode && g_StageNum != STAGE_TITLE && g_StageNum != STAGE_CITRAINING) {
 			netPlayersAllocate();
 		}
 #endif

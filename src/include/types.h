@@ -324,6 +324,9 @@ struct prop {
 	/*0x3f*/ u8 active : 1;
 	/*0x40*/ struct wallhit *opawallhits; // opaque
 	/*0x44*/ struct wallhit *xluwallhits; // translucent
+#ifndef PLATFORM_N64
+	/*0x48*/ u32 syncid;
+#endif
 };
 
 struct packedpad {

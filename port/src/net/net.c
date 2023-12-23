@@ -11,11 +11,13 @@
 #include "constants.h"
 #include "data.h"
 #include "bss.h"
-#include "game/chraction.h"
-#include "game/bot.h"
-#include "game/botact.h"
+#include "game/hudmsg.h"
+#include "game/playermgr.h"
+#include "game/bondgun.h"
+#include "lib/main.h"
 #include "config.h"
 #include "system.h"
+#include "console.h"
 #include "utils.h"
 
 s32 g_NetMode = NETMODE_NONE;
@@ -23,9 +25,10 @@ s32 g_NetMode = NETMODE_NONE;
 u32 g_NetTick = 0;
 
 u32 g_NetInterpTicks = 6;
-u32 g_NetExterpTicks = 6;
 
-s32 g_NetSimPacketLoss = 20;
+s32 g_NetSimPacketLoss = 0;
+
+u32 g_NetNextSyncId = 1;
 
 s32 g_NetMaxClients = NET_MAX_CLIENTS;
 s32 g_NetNumClients = 0;
@@ -35,7 +38,7 @@ struct netclient *g_NetLocalClient = &g_NetClients[NET_MAX_CLIENTS];
 static u8 g_NetMsgBuf[NET_BUFSIZE];
 struct netbuf g_NetMsg = { .data = g_NetMsgBuf, .size = sizeof(g_NetMsgBuf) };
 
-static u8 g_NetMsgRelBuf[NET_BUFSIZE];
+static u8 g_NetMsgRelBuf[NET_BUFSIZE * 4]; // reliable buffer can be reliably fragmented
 struct netbuf g_NetMsgRel = { .data = g_NetMsgRelBuf, .size = sizeof(g_NetMsgRelBuf) };
 
 static s32 g_NetInit = false;
@@ -132,6 +135,10 @@ const char *netFormatClientAddr(const struct netclient *cl)
 
 static inline void netClientReset(struct netclient *cl)
 {
+	if (cl->state >= CLSTATE_GAME && cl->player) {
+		cl->player->client = NULL;
+		cl->player->isremote = false;
+	}
 	memset(cl, 0, sizeof(*cl));
 	cl->out.data = cl->out_data;
 	cl->out.size = sizeof(cl->out_data);
@@ -159,13 +166,11 @@ static inline void netClientRecordMove(struct netclient *cl, const struct player
 	move->leanofs = pl->swaytarget / 75.f;
 	move->movespeed[0] = pl->speedforwards;
 	move->movespeed[1] = pl->speedsideways;
-	move->lookspeed[0] = pl->speedtheta;
-	move->lookspeed[1] = pl->speedverta;
 	move->angles[0] = pl->vv_theta;
 	move->angles[1] = pl->vv_verta;
   move->pos = (pl->prop) ? pl->prop->pos : pl->cam_pos;
-	move->rooms[0] = pl->cam_room;
-	move->rooms[1] = pl->floorroom;
+	move->crosspos[0] = pl->crosspos[0];
+	move->crosspos[1] = pl->crosspos[1];
 	move->ucmd = pl->ucmd;
 
 	if (pl->crouchpos == CROUCHPOS_DUCK) {
@@ -174,16 +179,50 @@ static inline void netClientRecordMove(struct netclient *cl, const struct player
 		move->ucmd |= UCMD_SQUAT;
 	}
 
-	if (pl->bondactivateorreload & JO_ACTION_ACTIVATE) {
-		move->ucmd |= UCMD_ACTIVATE;
+	if (pl->gunctrl.switchtoweaponnum >= 0) {
+		move->ucmd |= UCMD_SELECT;
+		move->weaponnum = pl->gunctrl.switchtoweaponnum;
+	} else {
+		move->weaponnum = -1;
 	}
-	if (pl->bondactivateorreload & JO_ACTION_RELOAD) {
-		move->ucmd |= UCMD_RELOAD;
+
+	const s32 oldnum = g_Vars.currentplayernum;
+	setCurrentPlayerNum(cl->playernum);
+
+	if (bgunIsUsingSecondaryFunction()) {
+		move->ucmd |= UCMD_SECONDARY;
 	}
+
+	setCurrentPlayerNum(oldnum);
 
 	if (cl != g_NetLocalClient && !cl->forcetick && (move->ucmd & UCMD_FL_FORCEMASK)) {
 		cl->forcetick = move->tick;
 		sysLogPrintf(LOG_NOTE, "NET: forcing client %u to move at tick %u", cl->id, cl->forcetick);
+	}
+}
+
+static inline s32 netClientNeedReliableMove(const struct netclient *cl)
+{
+	const struct netplayermove *move = &cl->outmove[0];
+	const struct netplayermove *moveprev = &cl->outmove[1];
+	return !moveprev->tick || (g_NetMode == NETMODE_SERVER && cl->forcetick) ||
+		(moveprev->ucmd & UCMD_IMPORTANT_MASK) != (move->ucmd & UCMD_IMPORTANT_MASK);
+}
+
+static inline void netFlushSendBuffers(void)
+{
+	if (g_NetMsgRel.wp) {
+		if (g_NetMsgRel.error) {
+			sysLogPrintf(LOG_WARNING, "NET: reliable out buffer overflow");
+		}
+		netSend(NULL, &g_NetMsgRel, true);
+	}
+
+	if (g_NetMsg.wp) {
+		if (g_NetMsg.error) {
+			sysLogPrintf(LOG_WARNING, "NET: unreliable out buffer overflow");
+		}
+		netSend(NULL, &g_NetMsg, false);
 	}
 }
 
@@ -219,10 +258,16 @@ s32 netStartServer(u16 port, s32 maxclients)
 	g_NetLocalClient->settings.bodynum = g_PlayerConfigsArray[0].base.mpbodynum;
 	g_NetLocalClient->settings.headnum = g_PlayerConfigsArray[0].base.mpheadnum;
 	memcpy(g_NetLocalClient->settings.name, g_PlayerConfigsArray[0].base.name, sizeof(g_NetLocalClient->settings.name));
+	// the \n will be readded in the playerconfig
+	char *newline = strrchr(g_NetLocalClient->settings.name, '\n');
+	if (newline) {
+		*newline = '\0';
+	}
 
 	g_NetMode = NETMODE_SERVER;
 
 	g_NetTick = 0;
+	g_NetNextSyncId = 1;
 
 	sysLogPrintf(LOG_NOTE, "NET: created server on port %u", port);
 
@@ -232,6 +277,11 @@ s32 netStartServer(u16 port, s32 maxclients)
 void netServerStageStart(void)
 {
 	if (g_NetMode != NETMODE_SERVER) {
+		return;
+	}
+
+	if (g_StageNum == STAGE_TITLE || g_StageNum == STAGE_CITRAINING) {
+		g_NetLocalClient->state = CLSTATE_LOBBY;
 		return;
 	}
 
@@ -249,6 +299,7 @@ void netServerStageEnd(void)
 	}
 
 	g_NetLocalClient->state = CLSTATE_LOBBY;
+
 	netbufStartWrite(&g_NetMsgRel);
 	netmsgSvcStageEndWrite(&g_NetMsgRel);
 	netSend(NULL, &g_NetMsgRel, true);
@@ -292,10 +343,16 @@ s32 netStartClient(const char *addr)
 	g_NetLocalClient->settings.bodynum = g_PlayerConfigsArray[0].base.mpbodynum;
 	g_NetLocalClient->settings.headnum = g_PlayerConfigsArray[0].base.mpheadnum;
 	memcpy(g_NetLocalClient->settings.name, g_PlayerConfigsArray[0].base.name, sizeof(g_NetLocalClient->settings.name));
+	// the \n will be readded in the playerconfig
+	char *newline = strrchr(g_NetLocalClient->settings.name, '\n');
+	if (newline) {
+		*newline = '\0';
+	}
 
 	g_NetMode = NETMODE_CLIENT;
 
 	g_NetTick = 0;
+	g_NetNextSyncId = 1;
 
 	sysLogPrintf(LOG_NOTE, "NET: waiting for response from %s...", addr);
 
@@ -307,6 +364,8 @@ s32 netDisconnect(void)
 	if (!g_NetMode) {
 		return -1;
 	}
+
+	const bool wasingame = (g_NetLocalClient->state >= CLSTATE_GAME);
 
 	for (s32 i = 0; i < NET_MAX_CLIENTS + 1; ++i) {
 		if (g_NetClients[i].peer) {
@@ -330,6 +389,11 @@ s32 netDisconnect(void)
 
 	sysLogPrintf(LOG_NOTE, "NET: disconnected");
 
+	if (wasingame) {
+		mainEndStage();
+		g_MpSetup.chrslots = 1;
+	}
+
 	return 0;
 }
 
@@ -339,9 +403,17 @@ static void netServerEvConnect(ENetPeer *peer, const u32 data)
 
 	sysLogPrintf(LOG_NOTE, "NET: connection attempt from %s", addrstr);
 
+	++g_NetNumClients;
+
 	if (data != NET_PROTOCOL_VER) {
 		sysLogPrintf(LOG_NOTE, "NET: %s rejected: protocol mismatch", addrstr);
 		enet_peer_disconnect(peer, DISCONNECT_VERSION);
+		return;
+	}
+
+	if (g_NetLocalClient && g_NetLocalClient->state > CLSTATE_LOBBY) {
+		sysLogPrintf(LOG_NOTE, "NET: %s rejected: late joins not allowed", addrstr);
+		enet_peer_disconnect(peer, DISCONNECT_LATE);
 		return;
 	}
 
@@ -365,8 +437,6 @@ static void netServerEvConnect(ENetPeer *peer, const u32 data)
 	cl->state = CLSTATE_AUTH; // skip CLSTATE_CONNECTING, since we already know it connected
 	cl->peer = peer;
 	enet_peer_set_data(peer, cl);
-
-	++g_NetNumClients;
 }
 
 static void netServerEvDisconnect(struct netclient *cl)
@@ -376,6 +446,8 @@ static void netServerEvDisconnect(struct netclient *cl)
 	if (cl->peer) {
 		enet_peer_reset(cl->peer);
 	}
+
+	sysLogPrintf(LOG_CHAT, "NET: %s (client %u) disconnected", cl->settings.name, cl->id);
 
 	netClientReset(cl);
 
@@ -392,7 +464,7 @@ static void netServerEvReceive(struct netclient *cl)
 		switch (msgid) {
 			case CLC_NOP: rc = 0; break;
 			case CLC_AUTH: rc = netmsgClcAuthRead(&cl->in, cl); break;
-			case CLC_CHAT: rc = 0; break;
+			case CLC_CHAT: rc = netmsgClcChatRead(&cl->in, cl); break;
 			case CLC_MOVE: rc = netmsgClcMoveRead(&cl->in, cl); break;
 			default:
 				rc = 1;
@@ -421,6 +493,8 @@ static void netClientEvDisconnect(const u32 reason)
 {
 	sysLogPrintf(LOG_NOTE, "NET: kicked from server, reason: %u", reason);
 	netDisconnect();
+
+	sysLogPrintf(LOG_CHAT, "NET: disconnected from server");
 }
 
 static void netClientEvReceive(struct netclient *cl)
@@ -433,10 +507,19 @@ static void netClientEvReceive(struct netclient *cl)
 		switch (msgid) {
 			case SVC_NOP: rc = 0; break;
 			case SVC_AUTH: rc = netmsgSvcAuthRead(&cl->in, cl); break;
-			case SVC_CHAT: rc = 0; break;
+			case SVC_CHAT: rc = netmsgSvcChatRead(&cl->in, cl); break;
 			case SVC_STAGE_START: rc = netmsgSvcStageStartRead(&cl->in, cl); break;
 			case SVC_STAGE_END: rc = netmsgSvcStageEndRead(&cl->in, cl); break;
 			case SVC_PLAYER_MOVE: rc = netmsgSvcPlayerMoveRead(&cl->in, cl); break;
+			case SVC_PLAYER_STATS: rc = netmsgSvcPlayerStatsRead(&cl->in, cl); break;
+			case SVC_PROP_MOVE: rc = netmsgSvcPropMoveRead(&cl->in, cl); break;
+			case SVC_PROP_SPAWN: rc = netmsgSvcPropSpawnRead(&cl->in, cl); break;
+			case SVC_PROP_DAMAGE: rc = netmsgSvcPropDamageRead(&cl->in, cl); break;
+			case SVC_PROP_PICKUP: rc = netmsgSvcPropPickupRead(&cl->in, cl); break;
+			case SVC_PROP_USE: rc = netmsgSvcPropUseRead(&cl->in, cl); break;
+			case SVC_PROP_DOOR: rc = netmsgSvcPropDoorRead(&cl->in, cl); break;
+			case SVC_CHR_DAMAGE: rc = netmsgSvcChrDamageRead(&cl->in, cl); break;
+			case SVC_CHR_DISARM: rc = netmsgSvcChrDisarmRead(&cl->in, cl); break;
 			default:
 				rc = 1;
 				break;
@@ -522,34 +605,28 @@ void netEndFrame(void)
 		return;
 	}
 
+	// send whatever messages have accumulated so far
+	netFlushSendBuffers();
+
 	if (g_NetLocalClient->state == CLSTATE_GAME && g_NetLocalClient->player && g_NetLocalClient->player->prop) {
 		if (g_NetMode == NETMODE_CLIENT) {
-			netClientRecordMove(g_NetLocalClient, g_NetLocalClient->player);
-			netmsgClcMoveWrite(&g_NetMsg);
+			if (g_NetTick > 100) {
+				netClientRecordMove(g_NetLocalClient, g_NetLocalClient->player);
+				netmsgClcMoveWrite(netClientNeedReliableMove(g_NetLocalClient) ? &g_NetMsgRel : &g_NetMsg);
+			}
 		} else {
 			for (s32 i = 0; i < g_NetMaxClients; ++i) {
 				struct netclient *cl = &g_NetClients[i];
 				if (cl->state >= CLSTATE_GAME && cl->player) {
 					netClientRecordMove(cl, cl->player);
-					netmsgSvcPlayerMoveWrite(cl->forcetick ? &g_NetMsgRel : &g_NetMsg, cl);
+					netmsgSvcPlayerMoveWrite(netClientNeedReliableMove(g_NetLocalClient) ? &g_NetMsgRel : &g_NetMsg, cl);
 				}
 			}
 		}
 	}
 
-	if (g_NetMsgRel.wp) {
-		if (g_NetMsgRel.error) {
-			sysLogPrintf(LOG_WARNING, "NET: reliable out buffer overflow");
-		}
-		netSend(NULL, &g_NetMsgRel, true);
-	}
-
-	if (g_NetMsg.wp) {
-		if (g_NetMsg.error) {
-			sysLogPrintf(LOG_WARNING, "NET: unreliable out buffer overflow");
-		}
-		netSend(NULL, &g_NetMsg, false);
-	}
+	// send position updates
+	netFlushSendBuffers();
 
 	enet_host_flush(g_NetHost);
 }
@@ -610,7 +687,7 @@ void netPlayersAllocate(void)
 			cfg->controlmode = CONTROLMODE_NA;
 			cfg->base.mpbodynum = cl->settings.bodynum;
 			cfg->base.mpheadnum = cl->settings.headnum;
-			memcpy(cfg->base.name, cl->settings.name, MAX_PLAYERNAME);
+			snprintf(cfg->base.name, sizeof(cfg->base.name), "%s\n", cl->settings.name);
 		}
 
 		cl->player = g_Vars.players[cl->playernum];
@@ -618,5 +695,68 @@ void netPlayersAllocate(void)
 		cl->config->client = cl;
 		cl->player->client = cl;
 		cl->player->isremote = (cl != g_NetLocalClient);
+	}
+}
+
+void netSyncIdsAllocate(void)
+{
+	// allocate sync ids sequentially for all active or paused props
+	g_NetNextSyncId = 1;
+
+	// don't allocate anything else if we're in lobby
+	if (g_StageNum == STAGE_TITLE || g_StageNum == STAGE_CITRAINING) {
+		return;
+	}
+
+	// iterate active props first
+	struct prop *prop = g_Vars.activeprops;
+	while (prop && prop != g_Vars.pausedprops) {
+		prop->syncid = prop - g_Vars.props + 1;
+		if (prop->syncid > g_NetNextSyncId) {
+			g_NetNextSyncId = prop->syncid;
+		}
+		prop = prop->next;
+	}
+
+	// then the paused props
+	prop = g_Vars.pausedprops;
+	while (prop) {
+		prop->syncid = prop - g_Vars.props + 1;
+		if (prop->syncid > g_NetNextSyncId) {
+			g_NetNextSyncId = prop->syncid;
+		}
+		prop = prop->next;
+	}
+
+	// HACK: when we're a client, we'll need to swap our player and server player's props
+	// because of what we do in netPlayersAllocate
+	if (g_NetMode == NETMODE_CLIENT) {
+		const u16 sid = g_Vars.players[g_NetLocalClient->id]->prop->syncid;
+		g_Vars.players[g_NetLocalClient->id]->prop->syncid = g_Vars.players[0]->prop->syncid;
+		g_Vars.players[0]->prop->syncid = sid;
+	}
+
+	sysLogPrintf(LOG_NOTE, "NET: last initial syncid: %u", g_NetNextSyncId);
+}
+
+void netChat(const char *text)
+{
+	char tmp[1024];
+
+	if (!g_NetMode || !g_NetLocalClient || g_NetLocalClient->state < CLSTATE_LOBBY) {
+		return;
+	}
+
+	snprintf(tmp, sizeof(tmp), "%s: %s", g_NetLocalClient->settings.name, text);
+	char *nl = strchr(tmp, '\n');
+	if (nl) {
+		*nl = ' ';
+	}
+
+	if (g_NetMode == NETMODE_SERVER) {
+		sysLogPrintf(LOG_CHAT, tmp);
+		netmsgSvcChatWrite(&g_NetMsgRel, tmp);
+	} else {
+		netmsgClcChatWrite(&g_NetMsgRel, tmp);
 	}
 }

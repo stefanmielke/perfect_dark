@@ -15,6 +15,7 @@
 #include "net/net.h"
 
 extern MenuItemHandlerResult menuhandlerMainMenuCombatSimulator(s32 operation, struct menuitem *item, union handlerdata *data);
+extern MenuItemHandlerResult menuhandlerMpAdvancedSetup(s32 operation, struct menuitem *item, union handlerdata *data);
 
 static s32 g_NetMenuMaxPlayers = NET_MAX_CLIENTS;
 static s32 g_NetMenuPort = NET_DEFAULT_PORT;
@@ -44,6 +45,7 @@ static MenuItemHandlerResult menuhandlerHostStart(s32 operation, struct menuitem
 	if (operation == MENUOP_SET) {
 		if (netStartServer(g_NetMenuPort, g_NetMenuMaxPlayers) == 0) {
 			menuhandlerMainMenuCombatSimulator(MENUOP_SET, NULL, NULL);
+			menuhandlerMpAdvancedSetup(MENUOP_SET, NULL, NULL);
 		}
 	}
 

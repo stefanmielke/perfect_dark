@@ -5384,7 +5384,7 @@ Gfx *menuRender(Gfx *gdl)
 					sprintf(text, "Client: ID %u", g_NetLocalClient->id);
 				}
 				x = viewleft + 2;
-				y = viewtop + 2;
+				y = viewbottom - 9;
 				colour = 0x5070ffff;
 				gdl = textRenderProjected(gdl, &x, &y, text, g_CharsHandelGothicSm, g_FontHandelGothicSm, colour, viGetWidth(), viGetHeight(), 0, 0);
 			} else

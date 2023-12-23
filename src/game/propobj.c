@@ -79,6 +79,7 @@
 #include "string.h"
 #ifndef PLATFORM_N64
 #include "net/net.h"
+#include "net/netmsg.h"
 #endif
 
 void rng2SetSeed(u32 seed);
@@ -8120,6 +8121,13 @@ void liftTick(struct prop *prop)
 				stop = (stop + 1) % 4;
 			} while (lift->pads[stop] < 0);
 
+#ifndef PLATFORM_N64
+			if (g_NetMode == NETMODE_CLIENT) {
+				// don't start if we're not the authority
+				return;
+			}
+#endif
+
 			liftGoToStop(lift, stop);
 		}
 	}
@@ -14211,6 +14219,12 @@ void objBounce(struct defaultobj *obj, struct coord *gundir2d)
 		projectile->speed.z += 3.3333333f * dir.z;
 		projectile->ownerprop = g_Vars.currentplayer->prop;
 		projectile->bouncecount = 1;
+
+#ifndef PLATFORM_N64
+		if (g_NetMode == NETMODE_SERVER) {
+			netmsgSvcPropMoveWrite(&g_NetMsgRel, obj->prop, &rot);
+		}
+#endif
 	}
 }
 
@@ -14288,6 +14302,11 @@ void objApplyMomentum(struct defaultobj *obj, struct coord *speed, f32 rotation,
 				projectile->unk0ec = 0.07852732f;
 				projectile->unk0f0 = 6.6666665f;
 			}
+#ifndef PLATFORM_N64
+			if (g_NetMode == NETMODE_SERVER) {
+				netmsgSvcPropMoveWrite(&g_NetMsgRel, obj->prop, NULL);
+			}
+#endif
 			return;
 		}
 
@@ -14318,6 +14337,12 @@ void objApplyMomentum(struct defaultobj *obj, struct coord *speed, f32 rotation,
 			projectile->unk0ec = 0.07852732f;
 			projectile->unk0f0 = 1.6666666f;
 		}
+
+#ifndef PLATFORM_N64
+		if (g_NetMode == NETMODE_SERVER) {
+			netmsgSvcPropMoveWrite(&g_NetMsgRel, obj->prop, NULL);
+		}
+#endif
 	}
 }
 
@@ -15358,9 +15383,14 @@ void objTakeGunfire(struct defaultobj *obj, f32 damage, struct coord *pos, s32 w
 void objDamage(struct defaultobj *obj, f32 damage, struct coord *pos, s32 weaponnum, s32 playernum)
 {
 #ifndef PLATFORM_N64
-	// if we aren't the authority, don't do anything
+	// if we aren't the authority, don't do anything, unless called from netmsg handler
 	if (g_NetMode == NETMODE_CLIENT) {
-		return;
+		if (damage < 0.f) {
+			// HACK: negative damage means we were called from netmsg.c
+			damage = -damage;
+		} else {
+			return;
+		}
 	}
 #endif
 
@@ -15951,6 +15981,10 @@ void objHit(struct shotdata *shotdata, struct hit *hit)
 				pushdir.y = shotdata->gundir3d.y;
 				pushdir.z = shotdata->gundir3d.z;
 
+#ifndef PLATFORM_N64
+				// don't push anything if we're not the authority
+				if (g_NetMode != NETMODE_CLIENT)
+#endif
 				func0f082e84(obj, &spa4, &pushdir, &spb0, true);
 			} else {
 				bool bounce = false;
@@ -15972,6 +16006,13 @@ void objHit(struct shotdata *shotdata, struct hit *hit)
 				if (obj->flags2 & OBJFLAG2_LINKEDTOSAFE) {
 					bounce = false;
 				}
+
+#ifndef PLATFORM_N64
+				// don't bounce anything if we're not the authority
+				if (g_NetMode == NETMODE_CLIENT) {
+					bounce = false;
+				}
+#endif
 
 				if (bounce) {
 					objBounce(obj, &shotdata->gundir2d);
@@ -17281,6 +17322,11 @@ s32 propPickupByPlayer(struct prop *prop, bool showhudmsg)
 
 					if (sp64) {
 						weaponPlayPickupSound(weapon->weaponnum);
+#ifndef PLATFORM_N64
+						if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->client) {
+							netmsgSvcPropPickupWrite(&g_NetMsgRel, g_Vars.currentplayer->client, prop, sp64);
+						}
+#endif
 					}
 
 					return sp64;
@@ -17291,6 +17337,11 @@ s32 propPickupByPlayer(struct prop *prop, bool showhudmsg)
 
 					if (sp64) {
 						weaponPlayPickupSound(weapon->weaponnum);
+#ifndef PLATFORM_N64
+						if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->client) {
+							netmsgSvcPropPickupWrite(&g_NetMsgRel, g_Vars.currentplayer->client, prop, sp64);
+						}
+#endif
 					}
 
 					return sp64;
@@ -17457,6 +17508,13 @@ s32 propPickupByPlayer(struct prop *prop, bool showhudmsg)
 		result = TICKOP_GIVETOPLAYER;
 		break;
 	}
+
+#ifndef PLATFORM_N64
+	if (result != TICKOP_NONE && g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->client) {
+		netmsgSvcPropPickupWrite(&g_NetMsgRel, g_Vars.currentplayer->client, prop, result);
+		netmsgSvcPlayerStatsWrite(&g_NetMsgRel, g_Vars.currentplayer->client);
+	}
+#endif
 
 	if (result == TICKOP_FREE && (obj->hidden & OBJHFLAG_TAGGED) == 0) {
 		objFree(obj, false, obj->hidden2 & OBJH2FLAG_CANREGEN);
@@ -19074,6 +19132,13 @@ void doorsCheckAutomatic(void)
 	s16 *propnumptr;
 	s16 propnums[256];
 
+#ifndef PLATFORM_N64
+	if (g_NetMode == NETMODE_CLIENT) {
+		// don't do anything if we're not the authority
+		return;
+	}
+#endif
+
 	roomGetProps(g_Vars.currentplayer->prop->rooms, propnums, 256);
 	propnumptr = propnums;
 
@@ -19850,6 +19915,11 @@ void doorSetMode(struct doorobj *door, s32 newmode)
 	} else {
 		door->mode = newmode;
 	}
+#ifndef PLATFORM_N64
+	if (g_NetMode == NETMODE_SERVER) {
+		netmsgSvcPropDoorWrite(&g_NetMsgRel, door->base.prop, g_Vars.currentplayer->client);
+	}
+#endif
 }
 
 /**
@@ -21215,6 +21285,13 @@ void weaponCreateForPlayerDrop(s32 weaponnum)
 	struct chrdata *chr;
 	u32 stack2;
 
+#ifndef PLATFORM_N64
+	// don't do anything if we're not the authority
+	if (g_NetMode == NETMODE_CLIENT) {
+		return;
+	}
+#endif
+
 	chr = g_Vars.currentplayer->prop->chr;
 	prop = weaponCreateForChr(chr, playermgrGetModelOfWeapon(weaponnum), weaponnum, OBJFLAG_WEAPON_AICANNOTUSE, NULL, NULL);
 
@@ -21225,6 +21302,13 @@ void weaponCreateForPlayerDrop(s32 weaponnum)
 		if (weaponnum == WEAPON_BRIEFCASE2) {
 			scenarioHandleDroppedToken(chr, prop);
 		}
+
+#ifndef PLATFORM_N64
+		if (g_NetMode == NETMODE_SERVER) {
+			netmsgSvcPropSpawnWrite(&g_NetMsgRel, prop);
+			netmsgSvcPropMoveWrite(&g_NetMsgRel, prop, NULL);
+		}
+#endif
 	}
 }
 

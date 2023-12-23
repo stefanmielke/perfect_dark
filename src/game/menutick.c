@@ -221,6 +221,12 @@ void menuTick(void)
 				viBlack(false);
 				g_MpNumJoined = 0;
 
+#ifndef PLATFORM_N64
+				if (g_NetMode) {
+					g_Vars.mpsetupmenu = MPSETUPMENU_ADVSETUP;
+					g_MpSetup.chrslots = 1;
+				} else
+#endif
 				if (g_Vars.usingadvsetup) {
 					g_Vars.mpsetupmenu = MPSETUPMENU_ADVSETUP;
 				} else {
@@ -236,6 +242,13 @@ void menuTick(void)
 						if (g_Vars.mpsetupmenu == MPSETUPMENU_ADVSETUP) {
 							g_MpNumJoined++;
 							func0f17fcb0(true);
+#ifndef PLATFORM_N64
+							if (g_NetMode == NETMODE_CLIENT) {
+								// autodump client into waiting screen while host is changing settings
+								extern struct menudialogdef g_NetJoiningDialog;
+								menuPushDialog(&g_NetJoiningDialog);
+							}
+#endif
 						} else if (g_MpNumJoined == 0) {
 							g_MpNumJoined++;
 
@@ -536,7 +549,12 @@ void menuTick(void)
 					func0f0fd548(4);
 				}
 
+#ifdef PLATFORM_N64
 				for (i = 0; i < MAX_PLAYERS; i++) {
+#else
+				const s32 maxplayers = g_NetMode ? 1 : MAX_PLAYERS;
+				for (i = 0; i < maxplayers; i++) {
+#endif
 					if (g_MpSetup.chrslots & (1 << i)) {
 						if (g_Vars.coopplayernum >= 0) {
 							if (g_Vars.stagenum == STAGE_DEEPSEA) {

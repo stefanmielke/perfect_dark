@@ -73,6 +73,8 @@
 #ifndef PLATFORM_N64
 #include "video.h"
 #include "input.h"
+#include "net/net.h"
+#include "net/netmsg.h"
 #endif
 
 s32 g_DefaultWeapons[2];
@@ -1116,6 +1118,12 @@ void playerSpawn(void)
 	}
 
 	playerUpdatePerimInfo();
+
+#ifndef PLATFORM_N64
+	if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->client) {
+		netmsgSvcPlayerStatsWrite(&g_NetMsgRel, g_Vars.currentplayer->client);
+	}
+#endif
 }
 
 void playerResetBond(struct playerbond *pb, struct coord *pos)
@@ -4677,6 +4685,13 @@ Gfx *playerRenderHud(Gfx *gdl)
 
 						if (g_Vars.antiplayernum >= 0 && g_Vars.currentplayer == g_Vars.anti) {
 							// Anti
+#ifndef PLATFORM_N64
+							if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->isremote) {
+								if (g_Vars.currentplayer->client->inmove[0].ucmd & UCMD_RESPAWN) {
+									g_Vars.currentplayer->dostartnewlife = true;
+								}
+							} else if (g_NetMode != NETMODE_CLIENT)
+#endif
 							if (joyGetButtons(optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex), 0xb000) && !mpIsPaused()) {
 								g_Vars.currentplayer->dostartnewlife = true;
 							}
@@ -4690,8 +4705,12 @@ Gfx *playerRenderHud(Gfx *gdl)
 								f32 stealhealth;
 								f32 shield;
 
-								canrestart = joyGetButtons(optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex), 0xb000)
-									&& !mpIsPaused();
+#ifndef PLATFORM_N64
+								if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->isremote) {
+									canrestart =  (g_Vars.currentplayer->client->inmove[0].ucmd & UCMD_RESPAWN) != 0;
+								} else if (g_NetMode != NETMODE_CLIENT)
+#endif
+								canrestart = joyGetButtons(optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex), 0xb000) && !mpIsPaused();
 
 								// Get ready to respawn.
 								// The other player's health will be halved.
@@ -4797,6 +4816,13 @@ Gfx *playerRenderHud(Gfx *gdl)
 							}
 						}
 
+#ifndef PLATFORM_N64
+						if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->isremote) {
+							if (!mpIsPaused() && g_NumReasonsToEndMpMatch == 0 && (g_Vars.currentplayer->client->inmove[0].ucmd & UCMD_RESPAWN)) {
+								canrestart = true;
+							}
+						} else if (g_NetMode != NETMODE_CLIENT)
+#endif
 						if (joyGetButtons(optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex), 0xb000)
 								&& !mpIsPaused()
 								&& g_NumReasonsToEndMpMatch == 0) {
@@ -4879,6 +4905,12 @@ void playerDie(bool force)
 {
 	struct chrdata *chr = g_Vars.currentplayer->prop->chr;
 	s32 shooter;
+
+#ifndef PLATFORM_N64
+	if (g_NetMode == NETMODE_CLIENT) {
+		return;
+	}
+#endif
 
 	if (chr->lastshooter >= 0 && chr->timeshooter > 0) {
 		shooter = chr->lastshooter;

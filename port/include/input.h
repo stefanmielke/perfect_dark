@@ -32,6 +32,7 @@ enum virtkey {
   VK_LEFTBRACKET = 47,
   VK_RIGHTBRACKET = 48,
   VK_SEMICOLON = 51,
+  VK_GRAVE = 53,
   VK_COMMA = 54,
   VK_PERIOD = 55,
   VK_DELETE = 76,
@@ -213,6 +214,12 @@ void inputSetDefaultKeyBinds(s32 cidx, s32 n64mode);
 // clear or get the last pressed button
 void inputClearLastKey(void);
 s32 inputGetLastKey(void);
+
+void inputStartTextInput(void);
+void inputStopTextInput(void);
+
+void inputClearLastTextChar(void);
+char inputGetLastTextChar(void);
 
 // get/set Input.MouseDefaultLocked
 s32 inputGetMouseDefaultLocked(void);

@@ -81,6 +81,8 @@ static f32 mouseSensX = 1.5f;
 static f32 mouseSensY = 1.5f;
 
 static s32 lastKey = 0;
+static char lastChar = 0;
+static s32 textInput = 0;
 
 static const char *ckNames[CK_TOTAL_COUNT] = {
 	"R_CBUTTONS",
@@ -512,6 +514,12 @@ static int inputEventFilter(void *data, SDL_Event *event)
 			}
 			break;
 
+		case SDL_TEXTINPUT:
+			if (!lastChar && event->text.text[0] && (u8)event->text.text[0] < 0x80) {
+				lastChar = event->text.text[0];
+			}
+			break;
+
 		default:
 			break;
 	}
@@ -718,6 +726,14 @@ s32 inputReadController(s32 idx, OSContPad *npad)
 	}
 
 	npad->button = 0;
+
+	if (textInput) {
+		npad->stick_x = 0;
+		npad->stick_y = 0;
+		npad->rstick_x = 0;
+		npad->rstick_y = 0;
+		return 0;
+	}
 
 	for (u32 i = 0; i < CONT_NUM_BUTTONS; ++i) {
 		if (inputBindPressed(idx, i)) {
@@ -1245,6 +1261,30 @@ void inputClearLastKey(void)
 s32 inputGetLastKey(void)
 {
 	return lastKey;
+}
+
+void inputStartTextInput(void)
+{
+	lastChar = 0;
+	lastKey = 0;
+	textInput = 1;
+	SDL_StartTextInput();
+}
+
+void inputClearLastTextChar(void)
+{
+	lastChar = 0;
+}
+
+char inputGetLastTextChar(void)
+{
+	return lastChar;
+}
+
+void inputStopTextInput(void)
+{
+	SDL_StopTextInput();
+	textInput = 0;
 }
 
 PD_CONSTRUCTOR static void inputConfigInit(void)

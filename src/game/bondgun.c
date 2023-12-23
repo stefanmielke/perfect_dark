@@ -56,6 +56,9 @@
 #ifndef PLATFORM_N64
 #include "game/stagetable.h"
 #include "video.h"
+#include "net/net.h"
+#include "net/netmsg.h"
+#include "system.h"
 #endif
 
 #define GUNLOADSTATE_FLUX     0
@@ -4472,7 +4475,7 @@ struct defaultobj *bgunCreateThrownProjectile2(struct chrdata *chr, struct gset 
  * 2 = fumbling grenade from right hand (due to nbomb)
  * 3 = fumbling grenade from left hand (actually not possible)
  */
-void bgunCreateThrownProjectile(s32 handnum, struct gset *gset)
+struct defaultobj *bgunCreateThrownProjectile(s32 handnum, struct gset *gset)
 {
 	struct coord velocity = {0, 0, 0};
 	Mtxf sp1f4;
@@ -4501,6 +4504,13 @@ void bgunCreateThrownProjectile(s32 handnum, struct gset *gset)
 	f32 sp48[4];
 	struct trainingdata *data;
 	u32 stack;
+
+#ifndef PLATFORM_N64
+	// don't do anything if we're not the authority
+	if (g_NetMode == NETMODE_CLIENT) {
+		return NULL;
+	}
+#endif
 
 	if (handnum >= 2) {
 		droppinggrenade = true;
@@ -4667,7 +4677,16 @@ void bgunCreateThrownProjectile(s32 handnum, struct gset *gset)
 				weapon->base.hidden |= OBJHFLAG_THROWNKNIFE;
 			}
 		}
+
+#ifndef PLATFORM_N64
+		if (obj && g_NetMode == NETMODE_SERVER) {
+			netmsgSvcPropSpawnWrite(&g_NetMsgRel, obj->prop);
+			netmsgSvcPropMoveWrite(&g_NetMsgRel, obj->prop, NULL);
+		}
+#endif
 	}
+
+	return obj;
 }
 
 void bgunUpdateHeldRocket(s32 handnum)
@@ -4770,6 +4789,12 @@ void bgunCreateFiredProjectile(s32 handnum)
 	f32 spe4[4];
 	f32 spd4[4];
 	f32 spc4[4];
+
+#ifndef PLATFORM_N64
+	if (g_NetMode == NETMODE_CLIENT) {
+		return;
+	}
+#endif
 
 	hand = g_Vars.currentplayer->hands + handnum;
 
@@ -4983,6 +5008,13 @@ void bgunCreateFiredProjectile(s32 handnum)
 					weapon->base.prop = NULL;
 					weapon->base.model = NULL;
 				}
+
+#ifndef PLATFORM_N64
+				if (!failed && g_NetMode == NETMODE_SERVER) {
+					netmsgSvcPropSpawnWrite(&g_NetMsgRel, weapon->base.prop);
+					netmsgSvcPropMoveWrite(&g_NetMsgRel, weapon->base.prop, NULL);
+				}
+#endif
 #else
 				// NTSC beta doesn't have any of the failure checks
 				Mtxf sp78;
@@ -6313,6 +6345,13 @@ void bgunDisarm(struct prop *attackerprop)
 	s32 modelnum;
 	s32 i;
 	bool drop;
+	struct defaultobj *obj;
+#ifndef PLATFORM_N64
+	// don't do anything if we're not the authority
+	if (g_NetMode == NETMODE_CLIENT) {
+		return;
+	}
+#endif
 
 	if (!weaponHasFlag(weaponnum, WEAPONFLAG_UNDROPPABLE) && weaponnum <= WEAPON_RCP45) {
 #if VERSION >= VERSION_NTSC_1_0
@@ -6329,6 +6368,12 @@ void bgunDisarm(struct prop *attackerprop)
 		if (weaponnum <= WEAPON_UNARMED || player->gunctrl.switchtoweaponnum != -1) {
 			return;
 		}
+
+#ifndef PLATFORM_N64
+		if (g_NetMode == NETMODE_SERVER) {
+			netmsgSvcChrDisarmWrite(&g_NetMsgRel, player->prop->chr, attackerprop, weaponnum, 0.f, NULL);
+		}
+#endif
 
 		chr = player->prop->chr;
 		drop = true;
@@ -6358,7 +6403,7 @@ void bgunDisarm(struct prop *attackerprop)
 						&& player->hands[i].stateminor == HANDSTATEMINOR_ATTACK_THROW_0) {
 #endif
 					drop = false;
-					bgunCreateThrownProjectile(i + 2, &player->hands[i].gset);
+					obj = bgunCreateThrownProjectile(i + 2, &player->hands[i].gset);
 				}
 			}
 		}
@@ -6382,6 +6427,13 @@ void bgunDisarm(struct prop *attackerprop)
 				}
 
 				objDrop(prop2, true);
+
+#ifndef PLATFORM_N64
+				if (g_NetMode == NETMODE_SERVER) {
+					netmsgSvcPropSpawnWrite(&g_NetMsgRel, prop2);
+					netmsgSvcPropMoveWrite(&g_NetMsgRel, prop2, NULL);
+				}
+#endif
 			}
 		}
 
@@ -11734,7 +11786,7 @@ void bgunSetTriggerOn(s32 handnum, bool on)
 s32 bgunConsiderToggleGunFunction(s32 usedowntime, bool trigpressed, bool fromactivemenu, bool fromdedicatedbutton)
 {
 #ifndef PLATFORM_N64
-	const bool extcontrols = PLAYER_EXTCFG().extcontrols;
+	const bool extcontrols = PLAYER_EXTCFG().extcontrols || g_Vars.currentplayer->isremote;
 #endif
 	switch (bgunGetWeaponNum(HAND_RIGHT)) {
 	case WEAPON_SNIPERRIFLE:
@@ -11795,6 +11847,8 @@ s32 bgunConsiderToggleGunFunction(s32 usedowntime, bool trigpressed, bool fromac
 			g_Vars.currentplayer->hands[HAND_RIGHT].activatesecondary = true;
 		}
 
+		sysLogPrintf(LOG_NOTE, "switchan %d -> %d", bgunIsUsingSecondaryFunction(), fromdedicatedbutton);
+
 		return USETIMER_STOP;
 	case WEAPON_MAULER:
 	case WEAPON_CMP150:
@@ -11841,7 +11895,7 @@ void bgun0f0a8c50(void)
 	case WEAPON_LAPTOPGUN:
 	case WEAPON_DRAGON:
 	case WEAPON_REMOTEMINE:
-		if (PLAYER_EXTCFG().extcontrols) {
+		if (PLAYER_EXTCFG().extcontrols || g_Vars.currentplayer->isremote) {
 			return;
 		}
 		break;

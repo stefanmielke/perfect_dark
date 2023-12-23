@@ -132,6 +132,28 @@ u32 netbufReadCoord(struct netbuf *buf, struct coord *out)
 	return 0;
 }
 
+u32 netbufReadMtxf(struct netbuf *buf, Mtxf *out)
+{
+	if (netbufCanRead(buf, sizeof(*out))) {
+		for (s32 i = 0; i < 4; ++i) {
+			for (s32 j = 0; j < 4; ++j) {
+				out->m[i][j] = netbufReadF32(buf);
+			}
+		}
+		return sizeof(*out);
+	}
+	return 0;
+}
+
+u32 netbufReadSkip(struct netbuf *buf, u32 count)
+{
+	if (netbufCanRead(buf, count)) {
+		buf->rp += count;
+		return count;
+	}
+	return 0;
+}
+
 /* write */
 
 void netbufStartWrite(struct netbuf *buf)
@@ -260,6 +282,19 @@ u32 netbufWriteCoord(struct netbuf *buf, const struct coord *v)
 		netbufWriteF32(buf, v->y);
 		netbufWriteF32(buf, v->z);
 		return sizeof(*v);
+	}
+	return 0;
+}
+
+u32 netbufWriteMtxf(struct netbuf *buf, const Mtxf *in)
+{
+	if (netbufCanWrite(buf, sizeof(*in))) {
+		for (s32 i = 0; i < 4; ++i) {
+			for (s32 j = 0; j < 4; ++j) {
+				netbufWriteF32(buf, in->m[i][j]);
+			}
+		}
+		return sizeof(*in);
 	}
 	return 0;
 }

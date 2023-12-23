@@ -43,7 +43,9 @@
 #include "input.h"
 #include "video.h"
 #include "system.h"
+#include "utils.h"
 #include "net/net.h"
+#include "net/netmsg.h"
 
 static void bgunProcessQuickDetonate(struct movedata *data, u32 c1buttons, u32 c1buttonsthisframe, u32 buttons1, u32 buttons2) {
 	if ((((c1buttons & (buttons1)) && (c1buttonsthisframe & (buttons2)))
@@ -107,10 +109,23 @@ static void bgunProcessInputAltButton(struct movedata *data, s8 contpad, s32 i)
 	}
 }
 
-static inline void bmoveProcessRemoteInput(void)
+static inline void bmoveProcessRemoteInput(const bool allowc1buttons)
 {
 	struct player *pl = g_Vars.currentplayer;
 	struct netplayermove *inmove = &pl->client->inmove[0];
+	struct netplayermove *inmoveprev = &pl->client->inmove[1];
+	s32 moveticks = inmove->tick - inmoveprev->tick;
+	if (moveticks > g_NetInterpTicks) {
+		moveticks = g_NetInterpTicks;
+	}
+
+	if (!inmove->tick) {
+		// no input
+		inmove->pos = inmoveprev->pos = pl->prop->pos;
+		inmove->angles[0] = inmoveprev->angles[0] = pl->vv_theta;
+		inmove->angles[1] = inmoveprev->angles[1] = pl->vv_verta;
+		inmove->ucmd = 0;
+	}
 
 	if (inmove->ucmd & UCMD_DUCK) {
 		pl->crouchpos = CROUCHPOS_DUCK;
@@ -122,19 +137,47 @@ static inline void bmoveProcessRemoteInput(void)
 
 	pl->bondactivateorreload = 0;
 
+	pl->eyesshut = (inmove->ucmd & UCMD_EYESSHUT) != 0;
+
+	pl->speedtheta = 0.f; // TODO: figure out if anglespeed is even required
+	pl->speedverta = 0.f;
+	pl->crouchoffset = inmove->crouchofs;
+
+	pl->oldcrosspos[0] = pl->crosspos[0];
+	pl->oldcrosspos[1] = pl->crosspos[1];
+	pl->crosspos[0] = inmove->crosspos[0];
+	pl->crosspos[1] = inmove->crosspos[1];
+
+	if (inmove->ucmd & UCMD_SELECT) {
+		bgunEquipWeapon(inmove->weaponnum);
+	}
+
+	const bool fireguns = (inmove->ucmd & UCMD_FIRE) &&
+		!g_Vars.currentplayer->waitforzrelease && allowc1buttons;
+
+	if ((inmove->ucmd & UCMD_SECONDARY) && !bgunIsUsingSecondaryFunction()) {
+		bgunConsiderToggleGunFunction(0, false, false, true);
+	} else if (!(inmove->ucmd & UCMD_SECONDARY) && bgunIsUsingSecondaryFunction()) {
+		// do not switch back to primary if in the process of throwing laptop
+		if (!(bgunGetWeaponNum(HAND_RIGHT) == WEAPON_LAPTOPGUN && pl->hands[HAND_RIGHT].state == HANDSTATE_ATTACK)) {
+			bgunConsiderToggleGunFunction(0, false, false, true);
+		}
+	}
+
+	bgunTickGameplay(fireguns);
+
+	if (fireguns && g_NetMode == NETMODE_SERVER) {
+		netmsgSvcPlayerStatsWrite(&g_NetMsgRel, pl->client);
+	}
+
+	if (inmove->ucmd & UCMD_RELOAD) {
+		pl->bondactivateorreload |= JO_ACTION_RELOAD;
+	}
+
 	if (g_NetMode == NETMODE_SERVER) {
 		if (inmove->ucmd & UCMD_ACTIVATE) {
 			pl->bondactivateorreload |= JO_ACTION_ACTIVATE;
 		}
-		if (inmove->ucmd & UCMD_RELOAD) {
-			pl->bondactivateorreload |= JO_ACTION_RELOAD;
-		}
-
-		if (pl->bondactivateorreload) {
-			bmoveHandleActivate();
-		}
-
-		bgunTickGameplay((inmove->ucmd & UCMD_FIRE) != 0);
 
 		if (g_Vars.bondvisible && (bgunIsFiring(HAND_RIGHT) || bgunIsFiring(HAND_LEFT))) {
 			f32 noiseradius = 0.f;
@@ -150,16 +193,18 @@ static inline void bmoveProcessRemoteInput(void)
 
 	bgunSetSightVisible(GUNSIGHTREASON_NOTAIMING, (inmove->ucmd & UCMD_AIMMODE) != 0);
 
-	pl->speedgo = inmove->movespeed[0];
-	pl->speedforwards = inmove->movespeed[0];
-	pl->speedstrafe = inmove->movespeed[1];
-	pl->speedsideways = inmove->movespeed[1];
-	pl->speedtheta = inmove->lookspeed[0];
-	pl->speedverta = inmove->lookspeed[1];
-	pl->vv_theta = inmove->angles[0];
-	pl->vv_verta = inmove->angles[1];
+	const bool forcepos = !inmoveprev->tick || !moveticks || (inmove->ucmd & UCMD_FL_FORCEANGLE);
 
-	pl->crouchoffset = inmove->crouchofs;
+	// lerp towards the current speeds and angles
+	const f32 dt = (forcepos ? 1.f : (1.f / (f32)moveticks));
+	f32 t = (forcepos ? 1.f : ((f32)pl->client->lerpticks / (f32)moveticks));
+	if (t > 1.f) {
+		t = 1.f;
+	}
+	pl->speedgo = pl->speedforwards = lerpf(inmoveprev->movespeed[0], inmove->movespeed[0], t);
+	pl->speedstrafe = pl->speedsideways = lerpf(inmoveprev->movespeed[1], inmove->movespeed[1], t);
+	pl->vv_theta = lerpanglef(pl->vv_theta, inmove->angles[0], dt);
+	pl->vv_verta = lerpanglef(pl->vv_verta, inmove->angles[1], dt);
 
 	if (pl->bondmovemode == MOVEMODE_GRAB) {
 		bgrabUpdateSpeedTheta();
@@ -177,22 +222,6 @@ static inline void bmoveProcessRemoteInput(void)
 	} else {
 		pl->speedmaxtime60 = 0;
 	}
-
-	if (pl->speedforwards > 1) {
-		pl->speedforwards = 1;
-	}
-	if (pl->speedforwards < -1) {
-		pl->speedforwards = -1;
-	}
-	if (pl->speedsideways > 1) {
-		pl->speedsideways = 1;
-	}
-	if (pl->speedsideways < -1) {
-		pl->speedsideways = -1;
-	}
-
-	pl->speedforwards *= 1.08f;
-	pl->speedforwards *= pl->speedboost;
 }
 
 #endif // PLATFORM_N64
@@ -403,10 +432,37 @@ void bmoveApplyMoveData(struct movedata *data)
 	} else if (g_Vars.currentplayer->bondmovemode == MOVEMODE_WALK) {
 		bwalkApplyMoveData(data);
 	}
+
 #ifndef PLATFORM_N64
 	// record some inputs if this is a local player
 	if (g_NetMode && !g_Vars.currentplayer->isremote) {
 		g_Vars.currentplayer->ucmd = 0;
+		if (g_Vars.currentplayer->isdead) {
+			if (g_NetMode == NETMODE_CLIENT) {
+				if (joyGetButtons(optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex), 0xb000)) {
+					g_Vars.currentplayer->ucmd |= UCMD_RESPAWN;
+				}
+			}
+		} else {
+			if (data->triggeron) {
+				g_Vars.currentplayer->ucmd |= UCMD_FIRE;
+			}
+			if (data->aiming) {
+				g_Vars.currentplayer->ucmd |= UCMD_AIMMODE;
+			}
+			if (g_Vars.currentplayer->bondactivateorreload & JO_ACTION_ACTIVATE) {
+				g_Vars.currentplayer->ucmd |= UCMD_ACTIVATE;
+			}
+			if (g_Vars.currentplayer->bondactivateorreload & JO_ACTION_RELOAD) {
+				g_Vars.currentplayer->ucmd |= UCMD_RELOAD;
+			}
+			if (data->eyesshut) {
+				g_Vars.currentplayer->ucmd |= UCMD_EYESSHUT;
+			}
+			if (data->weaponbackoffset || data->weaponforwardoffset) {
+				g_Vars.currentplayer->ucmd |= UCMD_SELECT;
+			}
+		}
 	}
 #endif
 }
@@ -813,7 +869,7 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 	bool allowmcross = false;
 
 	if (g_Vars.currentplayer->isremote) {
-		bmoveProcessRemoteInput();
+		bmoveProcessRemoteInput(allowc1buttons);
 		return;
 	}
 #endif

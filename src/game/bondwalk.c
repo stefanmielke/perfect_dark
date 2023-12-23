@@ -29,24 +29,25 @@
 #ifndef PLATFORM_N64
 #include "net/net.h"
 #include "system.h"
+#include "utils.h"
+
+static inline void lerpcoord(struct coord *c, const struct coord *a, const struct coord *b, const f32 t) {
+	c->x = lerpf(a->x, b->x, t);
+	c->y = lerpf(a->y, b->y, t);
+	c->z = lerpf(a->z, b->z, t);
+}
 
 static void bwalkUpdateRemote(void)
 {
 	struct player *pl = g_Vars.currentplayer;
 	const struct netplayermove *inmove = &pl->client->inmove[0];
 	const struct netplayermove *inmoveprev = &pl->client->inmove[1];
-	struct coord delta, target;
-	f32 spc8, spc4;
+	struct coord delta;
+	u16 cdtype = CDTYPE_ALL;
 	s32 moveticks = inmove->tick - inmoveprev->tick;
 	if (moveticks > g_NetInterpTicks) {
 		moveticks = g_NetInterpTicks;
 	}
-
-	const bool forcepos = !inmoveprev->tick || !moveticks ||
-		(inmove->ucmd & UCMD_FL_FORCEPOS) ||
-		(fabsf(pl->prop->pos.x - inmove->pos.x) > 256.f) ||
-		(fabsf(pl->prop->pos.y - inmove->pos.y) > 256.f) ||
-		(fabsf(pl->prop->pos.z - inmove->pos.z) > 256.f);
 
 	pl->client->inmovetick = inmove->tick;
 
@@ -55,38 +56,39 @@ static void bwalkUpdateRemote(void)
 	pl->bondshotspeed.z = 0.f;
 	pl->bondbreathing = 0.f;
 
-	if (forcepos) {
-		// no interpolation, set position and lock the lad in place
-		delta.x = 0.f;
-		delta.y = 0.f;
-		delta.z = 0.f;
-		pl->prop->pos = inmove->pos;
-		pl->client->lerpticks = g_NetInterpTicks + g_NetExterpTicks;
-	} else if (pl->client->lerpticks <= moveticks) {
-		// lerp towards the new position
-		const f32 t = (f32)pl->client->lerpticks / (f32)moveticks;
-		target.x = inmoveprev->pos.x + (inmove->pos.x - inmoveprev->pos.x) * t;
-		target.y = inmoveprev->pos.y + (inmove->pos.y - inmoveprev->pos.y) * t;
-		target.z = inmoveprev->pos.z + (inmove->pos.z - inmoveprev->pos.z) * t;
-		delta.x = target.x - pl->prop->pos.x;
-		delta.y = target.y - pl->prop->pos.y;
-		delta.z = target.z - pl->prop->pos.z;
-		pl->client->lerpticks += g_Vars.lvupdate60;
-	} else if (pl->client->lerpticks <= moveticks + g_NetExterpTicks) {
-		// try extrapolating based on inputs for a while
-		pl->client->lerpticks += g_Vars.lvupdate60;
-		bwalk0f0c69b8();
-		return;
-	}	else {
-		// we're too far gone, lock position
-		delta.x = 0.f;
-		delta.y = 0.f;
-		delta.z = 0.f;
-		pl->prop->pos = inmove->pos;
-	}
+	const bool forcepos = !inmoveprev->tick ||
+		(inmove->ucmd & UCMD_FL_FORCEPOS) ||
+		(fabsf(pl->prop->pos.x - inmove->pos.x) > 512.f) ||
+		(fabsf(pl->prop->pos.y - inmove->pos.y) > 512.f) ||
+		(fabsf(pl->prop->pos.z - inmove->pos.z) > 512.f);
 
-	bwalkUpdateCrouchOffset();
-	bwalk0f0c63bc(&delta, g_Vars.currentplayer->swaytarget == 0.0f, CDTYPE_ALL);
+	delta.x = 0.f;
+	delta.y = 0.f;
+	delta.z = 0.f;
+
+	// extrapolate
+	bwalk0f0c69b8();
+
+ 	if (forcepos) {
+		// no interpolation, set position and lock the lad in place
+		pl->prop->pos = inmove->pos;
+		pl->client->lerpticks = g_NetInterpTicks + 1;
+		cdtype = CDTYPE_PLAYERS; // don't get stuck in the local client
+	} else if (!moveticks) {
+		// duplicate move, reposition to correct coords
+		delta.x = inmove->pos.x - pl->prop->pos.x;
+		delta.x = inmove->pos.y - pl->prop->pos.y;
+		delta.x = inmove->pos.z - pl->prop->pos.z;
+		bwalk0f0c63bc(&delta, pl->swaytarget == 0.0f, cdtype);
+	} else if (pl->client->lerpticks <= moveticks) {
+		// lerp towards the correct position
+		const f32 dt = (f32)1.f / (f32)moveticks;
+		delta.x = g_Vars.lvupdate60freal * (inmove->pos.x - pl->prop->pos.x) * dt;
+		delta.y = g_Vars.lvupdate60freal * (inmove->pos.y - pl->prop->pos.y) * dt;
+		delta.z = g_Vars.lvupdate60freal * (inmove->pos.z - pl->prop->pos.z) * dt;
+		bwalk0f0c63bc(&delta, pl->swaytarget == 0.0f, cdtype);
+		pl->client->lerpticks += g_Vars.lvupdate60;
+	}
 }
 #endif
 
