@@ -24,9 +24,11 @@
 
 s32 g_NetMode = NETMODE_NONE;
 
-u32 g_NetTick = 0;
 u32 g_NetInterpTicks = 6;
+u32 g_NetServerPort = NET_DEFAULT_PORT;
+char g_NetLastJoinAddr[NET_MAX_ADDR + 1] = "127.0.0.1:27100";
 
+u32 g_NetTick = 0;
 u32 g_NetNextSyncId = 1;
 
 s32 g_NetSimPacketLoss = 0;
@@ -324,6 +326,9 @@ s32 netStartClient(const char *addr)
 		sysLogPrintf(LOG_ERROR, "NET: could not create ENet host");
 		return -3;
 	}
+
+	// save the address since it appears to be valid
+	strncpy(g_NetLastJoinAddr, addr, NET_MAX_ADDR);
 
 	// we'll use the whole array to store what we know of other clients
 	netClientResetAll();
@@ -785,4 +790,11 @@ Gfx *netDebugRender(Gfx *gdl)
 	gdl = text0f153780(gdl);
 
 	return gdl;
+}
+
+PD_CONSTRUCTOR static void netConfigInit(void)
+{
+	configRegisterString("Net.LastJoinAddr", g_NetLastJoinAddr, NET_MAX_ADDR);
+	configRegisterUInt("Net.ServerPort", &g_NetServerPort, 0, 0xFFFF);
+	configRegisterUInt("Net.LerpTicks", &g_NetInterpTicks, 0, 600);
 }

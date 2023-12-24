@@ -9,6 +9,7 @@
 
 #define NET_MAX_CLIENTS MAX_PLAYERS
 #define NET_MAX_NAME MAX_PLAYERNAME
+#define NET_MAX_ADDR 256
 
 #define NET_BUFSIZE 1440
 
@@ -98,8 +99,12 @@ extern s32 g_NetMode;
 
 // net frame, ticks at 60 fps, starts at 0 when the server is started
 extern u32 g_NetTick;
-extern u32 g_NetInterpTicks;
 extern u32 g_NetNextSyncId;
+
+extern u32 g_NetInterpTicks;
+extern u32 g_NetServerPort;
+extern char g_NetLastJoinAddr[NET_MAX_ADDR + 1];
+
 extern s32 g_NetDebugDraw;
 
 extern s32 g_NetMaxClients;

@@ -19,7 +19,7 @@ extern MenuItemHandlerResult menuhandlerMpAdvancedSetup(s32 operation, struct me
 
 static s32 g_NetMenuMaxPlayers = NET_MAX_CLIENTS;
 static s32 g_NetMenuPort = NET_DEFAULT_PORT;
-static char g_NetJoinAddr[256] = "127.0.0.1:27100";
+static char g_NetJoinAddr[NET_MAX_ADDR + 1];
 static s32 g_NetJoinAddrPtr = 0;
 
 /* host */
@@ -38,6 +38,22 @@ static MenuItemHandlerResult menuhandlerHostMaxPlayers(s32 operation, struct men
 	}
 
 	return 0;
+}
+
+static MenuItemHandlerResult menuhandlerHostPort(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	if (operation == MENUOP_SET) {
+
+	}
+
+	return 0;
+}
+
+static char *menuhandlerHostPortValue(struct menuitem *item)
+{
+	static char tmp[16];
+	snprintf(tmp, sizeof(tmp), "%u\n", g_NetMenuPort);
+	return tmp;
 }
 
 static MenuItemHandlerResult menuhandlerHostStart(s32 operation, struct menuitem *item, union handlerdata *data)
@@ -60,6 +76,14 @@ struct menuitem g_NetHostMenuItems[] = {
 		(uintptr_t)"Max Players",
 		NET_MAX_CLIENTS,
 		menuhandlerHostMaxPlayers,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Port\n",
+		(uintptr_t)&menuhandlerHostPortValue,
+		menuhandlerHostPort,
 	},
 	{
 		MENUITEMTYPE_SELECTABLE,
@@ -326,22 +350,45 @@ struct menudialogdef g_NetJoinMenuDialog = {
 
 /* main */
 
+static MenuItemHandlerResult menuhandlerHostGame(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	if (operation == MENUOP_SET) {
+		g_NetMenuPort = g_NetServerPort;
+		menuPushDialog(&g_NetHostMenuDialog);
+	}
+
+	return 0;
+}
+
+static MenuItemHandlerResult menuhandlerJoinGame(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	if (operation == MENUOP_SET) {
+		if (g_NetJoinAddr[0] == '\0') {
+			strncpy(g_NetJoinAddr, g_NetLastJoinAddr, NET_MAX_ADDR);
+			g_NetJoinAddrPtr = strlen(g_NetJoinAddr);
+		}
+		menuPushDialog(&g_NetJoinMenuDialog);
+	}
+
+	return 0;
+}
+
 struct menuitem g_NetMenuItems[] = {
 	{
 		MENUITEMTYPE_SELECTABLE,
 		0,
-		MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUITEMFLAG_LITERAL_TEXT,
+		MENUITEMFLAG_LITERAL_TEXT,
 		(uintptr_t)"Host Game\n",
 		0,
-		(void *)&g_NetHostMenuDialog,
+		menuhandlerHostGame,
 	},
 	{
 		MENUITEMTYPE_SELECTABLE,
 		0,
-		MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUITEMFLAG_LITERAL_TEXT,
+		MENUITEMFLAG_LITERAL_TEXT,
 		(uintptr_t)"Join Game\n",
 		0,
-		(void *)&g_NetJoinMenuDialog,
+		menuhandlerJoinGame,
 	},
 	{
 		MENUITEMTYPE_SEPARATOR,
