@@ -688,6 +688,7 @@ u32 netmsgSvcPropMoveWrite(struct netbuf *dst, struct prop *prop, struct coord *
 		netbufWriteU32(dst, projectile->flags);
 		netbufWriteS8(dst, projectile->bouncecount);
 		netbufWritePropPtr(dst, projectile->ownerprop);
+		netbufWritePropPtr(dst, projectile->targetprop);
 		if (initrot) {
 			netbufWriteCoord(dst, initrot);
 		}
@@ -760,6 +761,7 @@ u32 netmsgSvcPropMoveRead(struct netbuf *src, struct netclient *srccl)
 	projectile->flags = netbufReadU32(src);
 	projectile->bouncecount = netbufReadS8(src);
 	projectile->ownerprop = netbufReadPropPtr(src);
+	projectile->targetprop = netbufReadPropPtr(src);
 
 	if (flags & (1 << 2)) {
 		struct coord initrot; netbufReadCoord(src, &initrot);
@@ -774,6 +776,8 @@ u32 netmsgSvcPropMoveRead(struct netbuf *src, struct netclient *srccl)
 		projectile->unk0ec = netbufReadF32(src);
 		projectile->unk0f0 = netbufReadF32(src);
 	}
+
+	prop->pos = pos;
 
 	return src->error;
 }
@@ -798,6 +802,7 @@ u32 netmsgSvcPropSpawnWrite(struct netbuf *dst, struct prop *prop)
 			// dropped gun or projectile
 			netbufWriteS16(dst, prop->weapon->base.modelnum);
 			netbufWriteU8(dst, prop->weapon->weaponnum);
+			netbufWriteS8(dst, prop->weapon->dualweaponnum);
 			netbufWriteS8(dst, prop->weapon->unk5d);
 			netbufWriteS8(dst, prop->weapon->unk5e);
 			netbufWriteU8(dst, prop->weapon->gunfunc);
@@ -832,12 +837,19 @@ u32 netmsgSvcPropSpawnWrite(struct netbuf *dst, struct prop *prop)
 			}
 		}
 		if ((prop->obj->hidden & OBJHFLAG_PROJECTILE) && prop->obj->projectile) {
+			netbufWriteCoord(dst, &prop->obj->projectile->nextsteppos);
 			netbufWritePropPtr(dst, prop->obj->projectile->ownerprop);
+			netbufWritePropPtr(dst, prop->obj->projectile->targetprop);
 			netbufWriteU32(dst, prop->obj->projectile->flags);
-			netbufWriteS32(dst, prop->obj->projectile->pickuptimer240);
 			netbufWriteF32(dst, prop->obj->projectile->unk08c);
+			netbufWriteS16(dst, prop->obj->projectile->pickuptimer240);
 			netbufWriteS16(dst, prop->obj->projectile->droptype);
 			netbufWriteMtxf(dst, &prop->obj->projectile->mtx);
+			if (prop->obj->projectile->flags & PROJECTILEFLAG_POWERED) {
+				netbufWriteF32(dst, prop->obj->projectile->unk010);
+				netbufWriteF32(dst, prop->obj->projectile->unk014);
+				netbufWriteF32(dst, prop->obj->projectile->unk018);
+			}
 		}
 	}
 
@@ -864,6 +876,7 @@ u32 netmsgSvcPropSpawnRead(struct netbuf *src, struct netclient *srccl)
 	if (type == PROPTYPE_WEAPON) {
 		const s16 modelnum = netbufReadS16(src);
 		const u8 weaponnum = netbufReadU8(src);
+		const s8 dualweaponnum = netbufReadS8(src);
 		const s8 unk5d = netbufReadS8(src);
 		const s8 unk5e = netbufReadS8(src);
 		const u8 gunfunc = netbufReadU8(src);
@@ -932,9 +945,9 @@ u32 netmsgSvcPropSpawnRead(struct netbuf *src, struct netclient *srccl)
 		prop->forcetick = (msgflags & (1 << 2)) != 0;
 		// prop->flags = propflags;
 		roomsCopy(rooms, prop->rooms);
-		propRegisterRooms(prop);
 		if (msgflags & (1 << 0)) {
 			propActivate(prop);
+			propRegisterRooms(prop);
 		} else {
 			propPause(prop);
 		}
@@ -966,13 +979,24 @@ u32 netmsgSvcPropSpawnRead(struct netbuf *src, struct netclient *srccl)
 		if (prop->obj) {
 			if (hidden & OBJHFLAG_PROJECTILE) {
 				func0f0685e4(prop);
+				netbufReadCoord(src, &prop->obj->projectile->nextsteppos);
 				prop->obj->projectile->ownerprop = netbufReadPropPtr(src);
+				prop->obj->projectile->targetprop = netbufReadPropPtr(src);
 				prop->obj->projectile->flags = netbufReadU32(src);
-				prop->obj->projectile->pickuptimer240 = netbufReadS32(src);
 				prop->obj->projectile->unk08c = netbufReadF32(src);
+				prop->obj->projectile->pickuptimer240 = netbufReadS16(src);
 				prop->obj->projectile->droptype = netbufReadS16(src);
+				prop->obj->projectile->flighttime240 = 0;
 				netbufReadMtxf(src, &prop->obj->projectile->mtx);
-				if (prop->obj->projectile->flags & PROJECTILEFLAG_00000002) {
+				if (prop->obj->projectile->flags & PROJECTILEFLAG_POWERED) {
+					// rocket; get acceleration and realrot
+					prop->obj->projectile->unk010 = netbufReadF32(src);
+					prop->obj->projectile->unk014 = netbufReadF32(src);
+					prop->obj->projectile->unk018 = netbufReadF32(src);
+					prop->obj->projectile->powerlimit240 = TICKS(1200);
+					prop->obj->projectile->smoketimer240 = TICKS(24);
+				}
+				if (type == PROPTYPE_WEAPON && (prop->obj->projectile->flags & PROJECTILEFLAG_00000002)) {
 					// this is a thrown projectile, play throw sound
 					psCreate(NULL, prop, SFX_THROW, -1, -1, 0, 0, PSTYPE_NONE, NULL, -1, NULL, -1, -1, -1, -1);
 				}
@@ -992,6 +1016,9 @@ u32 netmsgSvcPropSpawnRead(struct netbuf *src, struct netclient *srccl)
 			}
 		}
 	}
+
+	// just in case
+	prop->pos = pos;
 
 	return src->error;
 }

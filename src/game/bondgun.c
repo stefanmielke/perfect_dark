@@ -5007,9 +5007,8 @@ void bgunCreateFiredProjectile(s32 handnum)
 					weapon->base.prop = NULL;
 					weapon->base.model = NULL;
 				}
-
 #ifndef PLATFORM_N64
-				if (!failed && g_NetMode == NETMODE_SERVER) {
+				else if (g_NetMode == NETMODE_SERVER) {
 					netmsgSvcPropSpawnWrite(&g_NetMsgRel, weapon->base.prop);
 					netmsgSvcPropMoveWrite(&g_NetMsgRel, weapon->base.prop, NULL);
 				}
