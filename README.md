@@ -1,5 +1,14 @@
 # Perfect Dark port
 
+## Experimental netplay branch
+
+This branch of the port contains an **extremely** early and experimental implementation of network play.  
+This is **NOT READY** for prime time. Use at your own risk if you are not a developer.
+
+Current status: Combat Simulator with 2-4 players is very partially functional with major client-side issues.
+
+## Original description
+
 This repository contains a work-in-progress port of the [Perfect Dark decompilation](https://github.com/n64decomp/perfect_dark) to modern platforms.
 
 To run the port, you must already have a Perfect Dark ROM, specifically one of the following:
