@@ -3,9 +3,11 @@
 ## Experimental netplay branch
 
 This branch of the port contains an **extremely** early and experimental implementation of network play.  
-This is **NOT READY** for prime time. Use at your own risk if you are not a developer.
+**DISCLAIMER:** This is **NOT READY** for prime time. Use at your own risk if you are not a developer.
 
 Current status: Combat Simulator with 2-4 players is very partially functional with major client-side issues.
+
+Press `~` to bring up the console, press `F9` for network stats.
 
 ## Original description
 
