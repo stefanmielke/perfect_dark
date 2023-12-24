@@ -49,7 +49,7 @@ void frametimeCalculate(void)
 #ifdef PLATFORM_N64
 	g_Vars.mininc60 = 1;
 #else
-	g_Vars.mininc60 = g_TickRateDiv;
+	g_Vars.mininc60 = g_NetMode ? 1 : g_TickRateDiv;
 #endif
 
 	frametimeApply(diffframe60, diffframe240, count);
