@@ -777,6 +777,10 @@ Gfx *netDebugRender(Gfx *gdl)
 		return gdl;
 	}
 
+	if (!g_CharsHandelGothicXs || !g_FontHandelGothicXs) {
+		return gdl;
+	}
+
 	gdl = text0f153628(gdl);
 	gSPSetExtraGeometryModeEXT(gdl++, G_ASPECT_LEFT_EXT);
 
