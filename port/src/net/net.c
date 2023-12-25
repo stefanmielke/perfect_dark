@@ -74,7 +74,7 @@ static s32 netParseAddr(ENetAddress *out, const char *str)
 			*port = '\0'; // terminate ip
 			port += 2; // skip ]:
 		}
-	} else if (strchr(host, '.')) {
+	} else {
 		// ipv4 or hostname
 		port = strrchr(host, ':');
 		if (port) {
@@ -99,9 +99,10 @@ static s32 netParseAddr(ENetAddress *out, const char *str)
 	out->port = portval;
 
 	if (isdigit(host[0]) || strchr(host, ':')) {
-		// we stripped off the :PORT at this point and domain names can't start with a digit
-		// so this must be an IP address
-		return (enet_address_set_ip(out, host) == 0);
+		// we stripped off the :PORT at this point, now check if this is an IP address
+		if (enet_address_set_ip(out, host) == 0) {
+			return true;
+		}
 	}
 
 	// must be a domain name; do a lookup
