@@ -6,9 +6,7 @@ This branch of the port contains an **extremely** early and experimental impleme
 **DISCLAIMER:** This is **NOT READY** for prime time. Use at your own risk if you are not a developer.  
 **Do not create issues about problems in this branch until this disclaimer is gone.**
 
-Current status: Combat Simulator with 2-4 players is very partially functional with major client-side issues.
-
-Press `~` to bring up the console, press `F9` for network stats.
+See [this file](https://github.com/fgsfdsfgs/perfect_dark/blob/port-net/docs/netplay.md) for more information on how this works.
 
 ## Original description
 
