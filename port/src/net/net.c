@@ -24,6 +24,12 @@
 
 s32 g_NetMode = NETMODE_NONE;
 
+u32 g_NetServerUpdateRate = 1;
+u32 g_NetServerInRate = 128 * 1024;
+u32 g_NetServerOutRate = 128 * 1024;
+u32 g_NetClientUpdateRate = 1;
+u32 g_NetClientInRate = 128 * 1024;
+u32 g_NetClientOutRate = 128 * 1024;
 u32 g_NetInterpTicks = 6;
 u32 g_NetServerPort = NET_DEFAULT_PORT;
 char g_NetLastJoinAddr[NET_MAX_ADDR + 1] = "127.0.0.1:27100";
@@ -49,6 +55,8 @@ static s32 g_NetInit = false;
 static ENetHost *g_NetHost;
 static ENetAddress g_NetLocalAddr;
 static ENetAddress g_NetRemoteAddr;
+
+static u32 g_NetNextUpdate = 0;
 
 static s32 netParseAddr(ENetAddress *out, const char *str)
 {
@@ -220,14 +228,14 @@ static inline void netFlushSendBuffers(void)
 		if (g_NetMsgRel.error) {
 			sysLogPrintf(LOG_WARNING, "NET: reliable out buffer overflow");
 		}
-		netSend(NULL, &g_NetMsgRel, true);
+		netSend(NULL, &g_NetMsgRel, true, NETCHAN_DEFAULT);
 	}
 
 	if (g_NetMsg.wp) {
 		if (g_NetMsg.error) {
 			sysLogPrintf(LOG_WARNING, "NET: unreliable out buffer overflow");
 		}
-		netSend(NULL, &g_NetMsg, false);
+		netSend(NULL, &g_NetMsg, false, NETCHAN_DEFAULT);
 	}
 }
 
@@ -249,7 +257,7 @@ s32 netStartServer(u16 port, s32 maxclients)
 
 	memset(&g_NetLocalAddr, 0, sizeof(g_NetLocalAddr));
 	g_NetLocalAddr.port = port;
-	g_NetHost = enet_host_create(&g_NetLocalAddr, maxclients, NETCHAN_COUNT, 0, 0, 0);
+	g_NetHost = enet_host_create(&g_NetLocalAddr, maxclients, NETCHAN_COUNT, g_NetServerInRate, g_NetServerOutRate, 0);
 	if (!g_NetHost) {
 		sysLogPrintf(LOG_ERROR, "NET: could not create ENet host");
 		return -2;
@@ -272,6 +280,7 @@ s32 netStartServer(u16 port, s32 maxclients)
 	g_NetMode = NETMODE_SERVER;
 
 	g_NetTick = 0;
+	g_NetNextUpdate = 0;
 	g_NetNextSyncId = 1;
 
 	sysLogPrintf(LOG_NOTE, "NET: created server on port %u", port);
@@ -294,7 +303,7 @@ void netServerStageStart(void)
 
 	netbufStartWrite(&g_NetMsgRel);
 	netmsgSvcStageStartWrite(&g_NetMsgRel);
-	netSend(NULL, &g_NetMsgRel, true);
+	netSend(NULL, &g_NetMsgRel, true, NETCHAN_CONTROL);
 }
 
 void netServerStageEnd(void)
@@ -307,7 +316,7 @@ void netServerStageEnd(void)
 
 	netbufStartWrite(&g_NetMsgRel);
 	netmsgSvcStageEndWrite(&g_NetMsgRel);
-	netSend(NULL, &g_NetMsgRel, true);
+	netSend(NULL, &g_NetMsgRel, true, NETCHAN_CONTROL);
 }
 
 s32 netStartClient(const char *addr)
@@ -322,7 +331,7 @@ s32 netStartClient(const char *addr)
 	}
 
 	memset(&g_NetLocalAddr, 0, sizeof(g_NetLocalAddr));
-	g_NetHost = enet_host_create(&g_NetLocalAddr, 1, NETCHAN_COUNT, 0, 0, 0);
+	g_NetHost = enet_host_create(&g_NetLocalAddr, 1, NETCHAN_COUNT, g_NetClientInRate, g_NetClientOutRate, 0);
 	if (!g_NetHost) {
 		sysLogPrintf(LOG_ERROR, "NET: could not create ENet host");
 		return -3;
@@ -360,6 +369,7 @@ s32 netStartClient(const char *addr)
 	g_NetMode = NETMODE_CLIENT;
 
 	g_NetTick = 0;
+	g_NetNextUpdate = 0;
 	g_NetNextSyncId = 1;
 
 	sysLogPrintf(LOG_NOTE, "NET: waiting for response from %s...", addr);
@@ -494,7 +504,7 @@ static void netClientEvConnect(const u32 data)
 	// send auth request
 	netbufStartWrite(&g_NetMsgRel);
 	netmsgClcAuthWrite(&g_NetMsgRel);
-	netSend(g_NetLocalClient, &g_NetMsgRel, true);
+	netSend(g_NetLocalClient, &g_NetMsgRel, true, NETCHAN_CONTROL);
 }
 
 static void netClientEvDisconnect(const u32 reason)
@@ -576,6 +586,7 @@ void netStartFrame(void)
 						netServerEvDisconnect(cl);
 					} else {
 						sysLogPrintf(LOG_WARNING, "NET: disconnect from %s without attached client", netFormatPeerAddr(ev.peer));
+						--g_NetNumClients;
 					}
 				}
 				break;
@@ -616,18 +627,22 @@ void netEndFrame(void)
 	// send whatever messages have accumulated so far
 	netFlushSendBuffers();
 
-	if (g_NetLocalClient->state == CLSTATE_GAME && g_NetLocalClient->player && g_NetLocalClient->player->prop) {
-		if (g_NetMode == NETMODE_CLIENT) {
-			if (g_NetTick > 100) {
-				netClientRecordMove(g_NetLocalClient, g_NetLocalClient->player);
-				netmsgClcMoveWrite(netClientNeedReliableMove(g_NetLocalClient) ? &g_NetMsgRel : &g_NetMsg);
-			}
-		} else {
-			for (s32 i = 0; i < g_NetMaxClients; ++i) {
-				struct netclient *cl = &g_NetClients[i];
-				if (cl->state >= CLSTATE_GAME && cl->player) {
-					netClientRecordMove(cl, cl->player);
-					netmsgSvcPlayerMoveWrite(netClientNeedReliableMove(g_NetLocalClient) ? &g_NetMsgRel : &g_NetMsg, cl);
+	if (g_NetTick >= g_NetNextUpdate) {
+		if (g_NetLocalClient->state == CLSTATE_GAME && g_NetLocalClient->player && g_NetLocalClient->player->prop) {
+			if (g_NetMode == NETMODE_CLIENT) {
+				g_NetNextUpdate = g_NetTick + g_NetClientUpdateRate;
+				if (g_NetTick > 100) {
+					netClientRecordMove(g_NetLocalClient, g_NetLocalClient->player);
+					netmsgClcMoveWrite(netClientNeedReliableMove(g_NetLocalClient) ? &g_NetMsgRel : &g_NetMsg);
+				}
+			} else {
+				g_NetNextUpdate = g_NetTick + g_NetServerUpdateRate;
+				for (s32 i = 0; i < g_NetMaxClients; ++i) {
+					struct netclient *cl = &g_NetClients[i];
+					if (cl->state >= CLSTATE_GAME && cl->player) {
+						netClientRecordMove(cl, cl->player);
+						netmsgSvcPlayerMoveWrite(netClientNeedReliableMove(g_NetLocalClient) ? &g_NetMsgRel : &g_NetMsg, cl);
+					}
 				}
 			}
 		}
@@ -639,7 +654,7 @@ void netEndFrame(void)
 	enet_host_flush(g_NetHost);
 }
 
-u32 netSend(struct netclient *dstcl, struct netbuf *buf, const s32 reliable)
+u32 netSend(struct netclient *dstcl, struct netbuf *buf, const s32 reliable, const s32 chan)
 {
 	if (g_NetMode == NETMODE_CLIENT) {
 		dstcl = g_NetLocalClient;
@@ -662,9 +677,9 @@ u32 netSend(struct netclient *dstcl, struct netbuf *buf, const s32 reliable)
 		}
 
 		if (dstcl == NULL) {
-			enet_host_broadcast(g_NetHost, NETCHAN_DEFAULT, p);
+			enet_host_broadcast(g_NetHost, chan, p);
 		} else {
-			enet_peer_send(dstcl->peer, NETCHAN_DEFAULT, p);
+			enet_peer_send(dstcl->peer, chan, p);
 		}
 	}
 
@@ -771,7 +786,7 @@ void netChat(const char *text)
 
 Gfx *netDebugRender(Gfx *gdl)
 {
-	char tmp[256];
+	char tmp[384];
 
 	if (!g_NetMode || !g_NetDebugDraw) {
 		return gdl;
@@ -785,10 +800,11 @@ Gfx *netDebugRender(Gfx *gdl)
 	gSPSetExtraGeometryModeEXT(gdl++, G_ASPECT_LEFT_EXT);
 
 	s32 x = 2;
-	s32 y = viGetHeight() - 1 - 4*8;
-	snprintf(tmp, sizeof(tmp), "Nettick: %u\nPing: %u\nSent: %u\nRecv: %u\n",
+	s32 y = viGetHeight() - 1 - 6*8;
+	snprintf(tmp, sizeof(tmp), "Nettick: %u\nPing: %u\nSent: %u\nSend rate: %u\nRecv: %u\nRecv rate: %u\n",
 		g_NetTick, g_NetLocalClient->peer ? enet_peer_get_rtt(g_NetLocalClient->peer) : 0,
-		enet_host_get_bytes_sent(g_NetHost), enet_host_get_bytes_received(g_NetHost));
+		enet_host_get_bytes_sent(g_NetHost), g_NetHost->outgoingBandwidth,
+		enet_host_get_bytes_received(g_NetHost), g_NetHost->incomingBandwidth);
 	gdl = textRenderProjected(gdl, &x, &y, tmp, g_CharsHandelGothicXs, g_FontHandelGothicXs, 0x00ff00ff, viGetWidth(), viGetHeight(), 0, 0);
 
 	gSPClearExtraGeometryModeEXT(gdl++, G_ASPECT_CENTER_EXT);
@@ -799,7 +815,13 @@ Gfx *netDebugRender(Gfx *gdl)
 
 PD_CONSTRUCTOR static void netConfigInit(void)
 {
-	configRegisterString("Net.LastJoinAddr", g_NetLastJoinAddr, NET_MAX_ADDR);
-	configRegisterUInt("Net.ServerPort", &g_NetServerPort, 0, 0xFFFF);
 	configRegisterUInt("Net.LerpTicks", &g_NetInterpTicks, 0, 600);
+
+	configRegisterString("Net.Client.LastJoinAddr", g_NetLastJoinAddr, NET_MAX_ADDR);
+	configRegisterUInt("Net.Client.InRate", &g_NetClientInRate, 0, 10 * 1024 * 1024);
+	configRegisterUInt("Net.Client.OutRate", &g_NetClientOutRate, 0, 10 * 1024 * 1024);
+
+	configRegisterUInt("Net.Server.Port", &g_NetServerPort, 0, 0xFFFF);
+	configRegisterUInt("Net.Server.InRate", &g_NetServerInRate, 0, 10 * 1024 * 1024);
+	configRegisterUInt("Net.Server.OutRate", &g_NetServerOutRate, 0, 10 * 1024 * 1024);
 }

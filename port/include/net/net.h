@@ -19,7 +19,8 @@
 #define NET_NULL_PROP 0
 
 #define NETCHAN_DEFAULT 0
-#define NETCHAN_COUNT 1
+#define NETCHAN_CONTROL 1
+#define NETCHAN_COUNT 2
 
 #define DISCONNECT_UNKNOWN  0
 #define DISCONNECT_SHUTDOWN 1
@@ -125,7 +126,7 @@ void netEndFrame(void);
 s32 netStartServer(u16 port, s32 maxclients);
 s32 netStartClient(const char *addr);
 
-u32 netSend(struct netclient *dstcl, struct netbuf *buf, const s32 reliable);
+u32 netSend(struct netclient *dstcl, struct netbuf *buf, const s32 reliable, const s32 chan);
 
 void netChat(const char *text);
 

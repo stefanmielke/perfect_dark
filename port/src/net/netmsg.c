@@ -174,7 +174,7 @@ u32 netmsgClcAuthRead(struct netbuf *src, struct netclient *srccl)
 
 	netbufStartWrite(&srccl->out);
 	netmsgSvcAuthWrite(&srccl->out, srccl);
-	netSend(srccl, NULL, true);
+	netSend(srccl, NULL, true, NETCHAN_CONTROL);
 
 	sysLogPrintf(LOG_CHAT, "NET: %s (client %u) joined", srccl->settings.name, srccl->id);
 
@@ -196,7 +196,7 @@ u32 netmsgClcChatRead(struct netbuf *src, struct netclient *srccl)
 		sysLogPrintf(LOG_CHAT, msg);
 		netbufStartWrite(&g_NetMsgRel);
 		netmsgSvcChatWrite(&g_NetMsgRel, msg);
-		netSend(NULL, &g_NetMsgRel, true);
+		netSend(NULL, &g_NetMsgRel, true, NETCHAN_DEFAULT);
 	}
 	return src->error;
 }
