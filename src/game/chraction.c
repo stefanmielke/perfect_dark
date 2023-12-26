@@ -15411,7 +15411,7 @@ bool chrMoveToPos(struct chrdata *chr, struct coord *pos, RoomNum *rooms, f32 an
 	bool result = false;
 	u32 nodetype;
 	union modelrwdata *rwdata;
-	struct player *player;
+	struct player *player = NULL;
 	f32 ground;
 
 	pos2.x = pos->x;
@@ -15462,7 +15462,7 @@ bool chrMoveToPos(struct chrdata *chr, struct coord *pos, RoomNum *rooms, f32 an
 		}
 
 #ifndef PLATFORM_N64
-		if (g_NetMode == NETMODE_SERVER && player->isremote) {
+		if (g_NetMode == NETMODE_SERVER && player && player->isremote) {
 			player->ucmd |= UCMD_FL_FORCEPOS | UCMD_FL_FORCEANGLE | UCMD_FL_FORCEGROUND;
 		}
 #endif

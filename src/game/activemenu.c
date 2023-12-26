@@ -26,7 +26,7 @@
 #include "data.h"
 #include "types.h"
 
-struct activemenu g_AmMenus[MAX_PLAYERS];
+struct activemenu g_AmMenus[MAX_LOCAL_PLAYERS];
 struct fontchar *g_AmFont1;
 struct font *g_AmFont2;
 s32 g_AmIndex;

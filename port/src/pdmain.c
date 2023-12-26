@@ -421,6 +421,9 @@ void mainLoop(void)
 
 		if (argFindByPrefix(1, "-ma")) {
 			g_MainMemaHeapSize = strtol(argFindByPrefix(1, "-ma"), NULL, 0) * 1024;
+			if (g_NetMode && g_NetMaxClients > MAX_LOCAL_PLAYERS) {
+				g_MainMemaHeapSize *= MAX_PLAYERS / MAX_LOCAL_PLAYERS;
+			}
 		}
 
 		memaReset(mempAlloc(g_MainMemaHeapSize, MEMPOOL_STAGE), g_MainMemaHeapSize);
@@ -470,16 +473,8 @@ void mainLoop(void)
 				&& (numplayers >= 2 || g_Vars.lvmpbotlevel || argFindByPrefix(1, "-play"))) {
 			g_MpSetup.chrslots = 1;
 
-			if (numplayers >= 2) {
-				g_MpSetup.chrslots |= 1 << 1;
-			}
-
-			if (numplayers >= 3) {
-				g_MpSetup.chrslots |= 1 << 2;
-			}
-
-			if (numplayers >= 4) {
-				g_MpSetup.chrslots |= 1 << 3;
+			for (s32 i = 1; i < numplayers; ++i) {
+				g_MpSetup.chrslots |= 1 << i;
 			}
 
 			g_MpSetup.stagenum = g_StageNum;

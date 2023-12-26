@@ -230,7 +230,7 @@ struct g_vars {
 	/*0x488*/ s32 totalkills;
 	/*0x48c*/ bool useperimshoot;
 	/*0x490*/ s32 mpsetupmenu;
-	/*0x494*/ s8 waitingtojoin[MAX_PLAYERS];
+	/*0x494*/ s8 waitingtojoin[MAX_LOCAL_PLAYERS];
 	/*0x498*/ s32 unk000498;
 	/*0x49c*/ bool usingadvsetup;
 	/*0x4a0*/ s32 unk0004a0;
@@ -251,7 +251,7 @@ struct g_vars {
 	/*0x4d6*/ s8 autocutfinished; // true if cutscene reached natural end
 	/*0x4d7*/ s8 autocutgroupskip; // true if pressed start during auto cutscene
 	/*0x4d8*/ s32 joydisableframestogo;
-	/*0x4dc*/ u8 playertojoymap[MAX_PLAYERS];
+	/*0x4dc*/ u8 playertojoymap[MAX_LOCAL_PLAYERS];
 	/*0x4e0*/ u8 fourmeg2player;
 	/*0x4e1*/ u8 remakewallhitvtx;
 	/*0x4e2*/ u8 cutsceneskip60ths;
@@ -4162,7 +4162,7 @@ struct challenge {
 	// Same structure as availability, however each byte determines how many
 	// players it was completed with. So completions[0] is for completions with
 	// a single player and completions[3] is for completions with 4 players.
-	/*0x05*/ u8 completions[MAX_PLAYERS];
+	/*0x05*/ u8 completions[MAX_LOCAL_PLAYERS];
 
 	// Array of features which will become unlocked once the challenge is
 	// available. The array is automatically populated at runtime based on what
@@ -4794,7 +4794,7 @@ struct menudata {
 	/*0x014*/ u8 bg;
 	/*0x015*/ u8 nextbg;
 	/*0x016*/ u8 screenshottimer;
-	/*0x017*/ u8 playerjoinalpha[MAX_PLAYERS];
+	/*0x017*/ u8 playerjoinalpha[MAX_LOCAL_PLAYERS];
 	/*0x01b*/ s8 bannernum;
 	/*0x01c*/ struct menumodel hudpiece;
 	/*0x5d4*/ u8 unk5d4;
@@ -5007,7 +5007,7 @@ struct mpconfigsim {
 	u8 mpheadnum;
 	u8 mpbodynum;
 	u8 team;
-	u8 difficulties[MAX_PLAYERS];
+	u8 difficulties[MAX_LOCAL_PLAYERS];
 };
 
 struct mpconfig {

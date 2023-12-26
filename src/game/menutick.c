@@ -233,7 +233,7 @@ void menuTick(void)
 					g_Vars.mpsetupmenu = MPSETUPMENU_GENERAL;
 				}
 
-				for (i = 0; i < MAX_PLAYERS; i++) {
+				for (i = 0; i < MAX_LOCAL_PLAYERS; i++) {
 					g_Vars.waitingtojoin[i] = false;
 
 					if (g_MpSetup.chrslots & (1 << i)) {
@@ -302,7 +302,11 @@ void menuTick(void)
 
 		if (g_MenuData.root == MENUROOT_MPSETUP || g_MenuData.root == MENUROOT_4MBMAINMENU) {
 			if (g_MenuData.unk008 == -1) {
+#if MAX_PLAYERS > 4
+				g_MpSetup.chrslots &= 0xff00;
+#else
 				g_MpSetup.chrslots &= 0xfff0;
+#endif
 			}
 
 			g_MpNumJoined = 0;
@@ -321,7 +325,7 @@ void menuTick(void)
 			challengePerformSanityChecks();
 		}
 
-		for (i = 0; i < MAX_PLAYERS; i++) {
+		for (i = 0; i < MAX_LOCAL_PLAYERS; i++) {
 			g_MpPlayerNum = i;
 
 			if (g_Menus[g_MpPlayerNum].curdialog) {
@@ -333,7 +337,7 @@ void menuTick(void)
 			}
 		}
 
-		for (i = 0; i < MAX_PLAYERS; i++) {
+		for (i = 0; i < MAX_LOCAL_PLAYERS; i++) {
 			g_MpPlayerNum = i;
 
 			if (g_Menus[g_MpPlayerNum].curdialog) {
@@ -357,7 +361,7 @@ void menuTick(void)
 							// Limit to 2 players? But in a roundabout kind of way
 							canjoin = true;
 
-							for (j = 0; j < MAX_PLAYERS; j++) {
+							for (j = 0; j < MAX_LOCAL_PLAYERS; j++) {
 								if (g_Vars.waitingtojoin[j]) {
 									canjoin = false;
 								}
@@ -550,9 +554,9 @@ void menuTick(void)
 				}
 
 #ifdef PLATFORM_N64
-				for (i = 0; i < MAX_PLAYERS; i++) {
+				for (i = 0; i < MAX_LOCAL_PLAYERS; i++) {
 #else
-				const s32 maxplayers = g_NetMode ? 1 : MAX_PLAYERS;
+				const s32 maxplayers = g_NetMode ? 1 : MAX_LOCAL_PLAYERS;
 				for (i = 0; i < maxplayers; i++) {
 #endif
 					if (g_MpSetup.chrslots & (1 << i)) {
@@ -644,12 +648,12 @@ void menuTick(void)
 				} else if (g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0) {
 					struct mpplayerconfig tmp;
 
-					tmp = g_PlayerConfigsArray[4];
-					g_PlayerConfigsArray[4] = g_PlayerConfigsArray[0];
+					tmp = g_PlayerConfigsArray[MAX_PLAYERS];
+					g_PlayerConfigsArray[MAX_PLAYERS] = g_PlayerConfigsArray[0];
 					g_PlayerConfigsArray[0] = tmp;
 
-					tmp = g_PlayerConfigsArray[5];
-					g_PlayerConfigsArray[5] = g_PlayerConfigsArray[1];
+					tmp = g_PlayerConfigsArray[MAX_PLAYERS + 1];
+					g_PlayerConfigsArray[MAX_PLAYERS + 1] = g_PlayerConfigsArray[1];
 					g_PlayerConfigsArray[1] = tmp;
 				}
 

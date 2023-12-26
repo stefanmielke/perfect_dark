@@ -29,10 +29,16 @@ void playermgrInit(void)
 
 void playermgrReset(void)
 {
+#if MAX_PLAYERS > 4
+	for (s32 i = 0; i < MAX_PLAYERS; ++i) {
+		g_Vars.players[i] = NULL;
+	}
+#else
 	g_Vars.players[0] = NULL;
 	g_Vars.players[1] = NULL;
 	g_Vars.players[2] = NULL;
 	g_Vars.players[3] = NULL;
+#endif
 
 	g_Vars.currentplayer = NULL;
 	g_Vars.currentplayerindex = 0;
@@ -51,10 +57,16 @@ void playermgrReset(void)
 
 void playermgrAllocatePlayers(s32 count)
 {
+#if MAX_PLAYERS > 4
+	for (s32 i = 0; i < MAX_PLAYERS; ++i) {
+		g_Vars.players[i] = NULL;
+	}
+#else
 	g_Vars.players[0] = NULL;
 	g_Vars.players[1] = NULL;
 	g_Vars.players[2] = NULL;
 	g_Vars.players[3] = NULL;
+#endif
 
 	if (count > 0) {
 		s32 i;
@@ -600,7 +612,7 @@ void playermgrAllocatePlayer(s32 index)
 	g_Vars.players[index]->introanimnum = 0;
 	g_Vars.players[index]->lastsighton = 0;
 
-	for (i = 0; i < MAX_PLAYERS; i++) {
+	for (i = 0; i < ARRAYCOUNT(g_Vars.players[index]->targetset); i++) {
 		g_Vars.players[index]->targetset[i] = 0;
 	}
 

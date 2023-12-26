@@ -5841,3 +5841,16 @@ void player0f0c3320(Mtxf *matrices, s32 count)
 		mtxF2L(&sp40, matrices + i);
 	}
 }
+
+#if MAX_PLAYERS > 4
+
+s32 playerGetCount(void)
+{
+	s32 count = 0;
+	for (s32 i = 0; i < MAX_PLAYERS; ++i) {
+		count += (g_Vars.players[i] != NULL);
+	}
+	return count;
+}
+
+#endif

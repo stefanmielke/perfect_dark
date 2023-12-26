@@ -23,7 +23,8 @@
 #define MAX_MPCHRS             (MAX_PLAYERS + MAX_BOTS)
 #define MAX_MPPLAYERCONFIGS    (MAX_PLAYERS + 2)
 #define MAX_OBJECTIVES         10
-#define MAX_PLAYERS            4
+#define MAX_LOCAL_PLAYERS      4
+#define MAX_PLAYERS            8
 #define MAX_PROPSPERROOMCHUNK  7
 #define MAX_ROOMPROPLISTCHUNKS 256
 #define MAX_SQUADRONS          16
@@ -68,7 +69,9 @@
 #define SECSTOTIME60(secs)  (secs * 60)
 #define PFS(device)         (device == SAVEDEVICE_GAMEPAK ? NULL : &g_Pfses[device])
 
-#if MAX_PLAYERS >= 4
+#if MAX_PLAYERS > 4
+#define PLAYERCOUNT()       playerGetCount()
+#elif MAX_PLAYERS == 4
 #define PLAYERCOUNT()       ((g_Vars.players[0] ? 1 : 0) + (g_Vars.players[1] ? 1 : 0) + (g_Vars.players[2] ? 1 : 0) + (g_Vars.players[3] ? 1 : 0))
 #elif MAX_PLAYERS >= 3
 #define PLAYERCOUNT()       ((g_Vars.players[0] ? 1 : 0) + (g_Vars.players[1] ? 1 : 0) + (g_Vars.players[2] ? 1 : 0))
