@@ -820,8 +820,10 @@ PD_CONSTRUCTOR static void netConfigInit(void)
 	configRegisterString("Net.Client.LastJoinAddr", g_NetLastJoinAddr, NET_MAX_ADDR);
 	configRegisterUInt("Net.Client.InRate", &g_NetClientInRate, 0, 10 * 1024 * 1024);
 	configRegisterUInt("Net.Client.OutRate", &g_NetClientOutRate, 0, 10 * 1024 * 1024);
+	configRegisterUInt("Net.Client.UpdateFrames", &g_NetClientUpdateRate, 0, 60);
 
 	configRegisterUInt("Net.Server.Port", &g_NetServerPort, 0, 0xFFFF);
 	configRegisterUInt("Net.Server.InRate", &g_NetServerInRate, 0, 10 * 1024 * 1024);
 	configRegisterUInt("Net.Server.OutRate", &g_NetServerOutRate, 0, 10 * 1024 * 1024);
+	configRegisterUInt("Net.Server.UpdateFrames", &g_NetServerUpdateRate, 0, 60);
 }
