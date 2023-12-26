@@ -58,6 +58,9 @@ static ENetAddress g_NetRemoteAddr;
 
 static u32 g_NetNextUpdate = 0;
 
+static u32 g_NetReliableFrameLen = 0;
+static u32 g_NetUnreliableFrameLen = 0;
+
 static s32 netParseAddr(ENetAddress *out, const char *str)
 {
 	char tmp[256] = { 0 };
@@ -222,12 +225,25 @@ static inline s32 netClientNeedReliableMove(const struct netclient *cl)
 		(moveprev->ucmd & UCMD_IMPORTANT_MASK) != (move->ucmd & UCMD_IMPORTANT_MASK);
 }
 
+static inline s32 netClientNeedMove(const struct netclient *cl)
+{
+	const struct netplayermove *move = &cl->outmove[0];
+	const struct netplayermove *moveprev = &cl->outmove[1];
+	if (move->tick && cl->outmoveack >= move->tick) {
+		return false;
+	}
+	const u8 *cmpa = (const u8 *)move + sizeof(move->tick);
+	const u8 *cmpb = (const u8 *)moveprev + sizeof(move->tick);
+	return (memcmp(cmpa, cmpb, sizeof(*move) - sizeof(move->tick)) != 0);
+}
+
 static inline void netFlushSendBuffers(void)
 {
 	if (g_NetMsgRel.wp) {
 		if (g_NetMsgRel.error) {
 			sysLogPrintf(LOG_WARNING, "NET: reliable out buffer overflow");
 		}
+		g_NetReliableFrameLen += g_NetMsgRel.wp;
 		netSend(NULL, &g_NetMsgRel, true, NETCHAN_DEFAULT);
 	}
 
@@ -235,6 +251,7 @@ static inline void netFlushSendBuffers(void)
 		if (g_NetMsg.error) {
 			sysLogPrintf(LOG_WARNING, "NET: unreliable out buffer overflow");
 		}
+		g_NetUnreliableFrameLen += g_NetMsg.wp;
 		netSend(NULL, &g_NetMsg, false, NETCHAN_DEFAULT);
 	}
 }
@@ -658,6 +675,9 @@ void netEndFrame(void)
 		return;
 	}
 
+	g_NetReliableFrameLen = 0;
+	g_NetUnreliableFrameLen = 0;
+
 	// send whatever messages have accumulated so far
 	netFlushSendBuffers();
 
@@ -667,7 +687,10 @@ void netEndFrame(void)
 				g_NetNextUpdate = g_NetTick + g_NetClientUpdateRate;
 				if (g_NetTick > 100) {
 					netClientRecordMove(g_NetLocalClient, g_NetLocalClient->player);
-					netmsgClcMoveWrite(netClientNeedReliableMove(g_NetLocalClient) ? &g_NetMsgRel : &g_NetMsg);
+					const bool needrel = netClientNeedReliableMove(g_NetLocalClient);
+					if (needrel || netClientNeedMove(g_NetLocalClient)) {
+						netmsgClcMoveWrite(needrel ? &g_NetMsgRel : &g_NetMsg);
+					}
 				}
 			} else {
 				g_NetNextUpdate = g_NetTick + g_NetServerUpdateRate;
@@ -675,7 +698,10 @@ void netEndFrame(void)
 					struct netclient *cl = &g_NetClients[i];
 					if (cl->state >= CLSTATE_GAME && cl->player) {
 						netClientRecordMove(cl, cl->player);
-						netmsgSvcPlayerMoveWrite(netClientNeedReliableMove(g_NetLocalClient) ? &g_NetMsgRel : &g_NetMsg, cl);
+						const bool needrel = netClientNeedReliableMove(cl);
+						if (needrel || netClientNeedMove(cl)) {
+							netmsgSvcPlayerMoveWrite(needrel ? &g_NetMsgRel : &g_NetMsg, cl);
+						}
 					}
 				}
 			}
@@ -835,10 +861,10 @@ Gfx *netDebugRender(Gfx *gdl)
 
 	s32 x = 2;
 	s32 y = viGetHeight() - 1 - 6*8;
-	snprintf(tmp, sizeof(tmp), "Nettick: %u\nPing: %u\nSent: %u\nSend rate: %u\nRecv: %u\nRecv rate: %u\n",
+	snprintf(tmp, sizeof(tmp), "Nettick: %u\nPing: %u\nSent: %u\nRecv: %u\nReliable frame: %u\nUnreliable frame: %u\n",
 		g_NetTick, g_NetLocalClient->peer ? enet_peer_get_rtt(g_NetLocalClient->peer) : 0,
-		enet_host_get_bytes_sent(g_NetHost), g_NetHost->outgoingBandwidth,
-		enet_host_get_bytes_received(g_NetHost), g_NetHost->incomingBandwidth);
+		enet_host_get_bytes_sent(g_NetHost), enet_host_get_bytes_received(g_NetHost),
+		g_NetReliableFrameLen, g_NetUnreliableFrameLen);
 	gdl = textRenderProjected(gdl, &x, &y, tmp, g_CharsHandelGothicXs, g_FontHandelGothicXs, 0x00ff00ff, viGetWidth(), viGetHeight(), 0, 0);
 
 	gSPClearExtraGeometryModeEXT(gdl++, G_ASPECT_CENTER_EXT);
