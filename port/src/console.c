@@ -93,7 +93,11 @@ void conPrint(s32 showmsg, const char *str)
 		}
 		if (showmsg) {
 			if (conMsgRows < CON_MSGROWS) {
-				++conMsgRows;
+				if (conPrintRow > oldRow) {
+					conMsgRows += conPrintRow - oldRow;
+				} else {
+					conMsgRows += conPrintRow + (CON_ROWS - oldRow);
+				}
 			}
 			conMsgTimer = sysGetSeconds() + CON_MSGTIMER;
 		}
