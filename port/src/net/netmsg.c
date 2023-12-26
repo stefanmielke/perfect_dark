@@ -22,6 +22,8 @@
 #include "game/modelmgr.h"
 #include "game/propsnd.h"
 #include "system.h"
+#include "romdata.h"
+#include "fs.h"
 #include "console.h"
 #include "net/net.h"
 #include "net/netbuf.h"
@@ -141,11 +143,19 @@ static inline s32 propRoomsEqual(const RoomNum *ra, const RoomNum *rb)
 
 u32 netmsgClcAuthWrite(struct netbuf *dst)
 {
+	const char *modDir = fsGetModDir();
+	if (!modDir) {
+		modDir = "";
+	}
+
 	netbufWriteU8(dst, CLC_AUTH);
+	netbufWriteStr(dst, g_RomName); // TODO: use a CRC or something
+	netbufWriteStr(dst, modDir);
 	netbufWriteU8(dst, 1); // TODO: number of local players
 	netbufWriteU8(dst, g_NetLocalClient->settings.bodynum);
 	netbufWriteU8(dst, g_NetLocalClient->settings.headnum);
 	netbufWriteStr(dst, g_NetLocalClient->settings.name);
+
 	return dst->error;
 }
 
@@ -156,13 +166,33 @@ u32 netmsgClcAuthRead(struct netbuf *src, struct netclient *srccl)
 		return 1;
 	}
 
+	const char *romName = netbufReadStr(src);
+	const char *modDir = netbufReadStr(src);
 	const u8 players = netbufReadU8(src);
 	const u8 bodynum = netbufReadU8(src);
 	const u8 headnum = netbufReadU8(src);
 	char *name = netbufReadStr(src);
 	if (src->error) {
 		sysLogPrintf(LOG_WARNING, "NET: malformed CLC_AUTH from %s", netFormatClientAddr(srccl));
+		netServerKick(srccl, DISCONNECT_KICKED);
 		return 1;
+	}
+
+	if (strcasecmp(romName, g_RomName) != 0) {
+		sysLogPrintf(LOG_WARNING, "NET: CLC_AUTH: %s has the wrong ROM, disconnecting", netFormatClientAddr(srccl));
+		netServerKick(srccl, DISCONNECT_FILES);
+		return src->error;
+	}
+
+	if (modDir[0] == '\0') {
+		modDir = NULL;
+	}
+
+	const char *myModDir = fsGetModDir();
+	if ((!myModDir != !modDir) || (myModDir && modDir && strcasecmp(modDir, myModDir) != 0)) {
+		sysLogPrintf(LOG_WARNING, "NET: CLC_AUTH: %s has the wrong mod, disconnecting", netFormatClientAddr(srccl));
+		netServerKick(srccl, DISCONNECT_FILES);
+		return src->error;
 	}
 
 	strncpy(srccl->settings.name, name, sizeof(srccl->settings.name) - 1);
@@ -176,7 +206,7 @@ u32 netmsgClcAuthRead(struct netbuf *src, struct netclient *srccl)
 	netmsgSvcAuthWrite(&srccl->out, srccl);
 	netSend(srccl, NULL, true, NETCHAN_CONTROL);
 
-	sysLogPrintf(LOG_CHAT, "NET: %s (client %u) joined", srccl->settings.name, srccl->id);
+	sysLogPrintf(LOG_CHAT, "NET: %s (%u) joined", srccl->settings.name, srccl->id);
 
 	return 0;
 }

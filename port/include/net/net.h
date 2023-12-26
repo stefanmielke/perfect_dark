@@ -5,7 +5,7 @@
 #include "constants.h"
 #include "net/netbuf.h"
 
-#define NET_PROTOCOL_VER 1
+#define NET_PROTOCOL_VER 2
 
 #define NET_MAX_CLIENTS MAX_PLAYERS
 #define NET_MAX_NAME MAX_PLAYERNAME
@@ -30,6 +30,7 @@
 #define DISCONNECT_TIMEOUT 5
 #define DISCONNECT_FULL 6
 #define DISCONNECT_LATE 7
+#define DISCONNECT_FILES 8
 
 #define CLSTATE_DISCONNECTED 0
 #define CLSTATE_CONNECTING 1
@@ -132,6 +133,7 @@ void netChat(const char *text);
 
 void netServerStageStart(void);
 void netServerStageEnd(void);
+void netServerKick(struct netclient *cl, const u32 reason);
 
 void netPlayersAllocate(void);
 void netSyncIdsAllocate(void);

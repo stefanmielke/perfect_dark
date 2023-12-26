@@ -239,6 +239,25 @@ static inline void netFlushSendBuffers(void)
 	}
 }
 
+static inline const char *netGetDisconnectReason(const u32 reason)
+{
+	static const char *msgs[] = {
+		"Unknown",
+		"Server is shutting down",
+		"Protocol or version mismatch",
+		"Kicked by console",
+		"You are banned on this server",
+		"Connection timed out",
+		"Server is full",
+		"The game is already in progress",
+		"Your files differ from the server's"
+	};
+	if (reason < (u32)ARRAYCOUNT(msgs)) {
+		return msgs[reason];
+	}
+	return msgs[0];
+}
+
 void netInit(void)
 {
 	if (enet_initialize() < 0) {
@@ -317,6 +336,19 @@ void netServerStageEnd(void)
 	netbufStartWrite(&g_NetMsgRel);
 	netmsgSvcStageEndWrite(&g_NetMsgRel);
 	netSend(NULL, &g_NetMsgRel, true, NETCHAN_CONTROL);
+}
+
+void netServerKick(struct netclient *cl, const u32 reason)
+{
+	if (g_NetMode != NETMODE_SERVER) {
+		return;
+	}
+
+	if (!cl || !cl->state || !cl->peer) {
+		return;
+	}
+
+	enet_peer_disconnect(cl->peer, reason);
 }
 
 s32 netStartClient(const char *addr)
@@ -405,7 +437,7 @@ s32 netDisconnect(void)
 	g_NetHost = NULL;
 	g_NetMode = NETMODE_NONE;
 
-	sysLogPrintf(LOG_NOTE, "NET: disconnected");
+	sysLogPrintf(LOG_CHAT, "NET: disconnected");
 
 	if (wasingame) {
 		mainEndStage();
@@ -465,7 +497,11 @@ static void netServerEvDisconnect(struct netclient *cl)
 		enet_peer_reset(cl->peer);
 	}
 
-	sysLogPrintf(LOG_CHAT, "NET: %s (client %u) disconnected", cl->settings.name, cl->id);
+	if (cl->settings.name) {
+		sysLogPrintf(LOG_CHAT, "NET: %s (%u) disconnected", cl->settings.name, cl->id);
+	} else {
+		sysLogPrintf(LOG_CHAT, "NET: client %u disconnected", cl->id);
+	}
 
 	netClientReset(cl);
 
@@ -509,10 +545,8 @@ static void netClientEvConnect(const u32 data)
 
 static void netClientEvDisconnect(const u32 reason)
 {
-	sysLogPrintf(LOG_NOTE, "NET: kicked from server, reason: %u", reason);
+	sysLogPrintf(LOG_CHAT, "NET: disconnected from server: %s (%u)", netGetDisconnectReason(reason), reason);
 	netDisconnect();
-
-	sysLogPrintf(LOG_CHAT, "NET: disconnected from server");
 }
 
 static void netClientEvReceive(struct netclient *cl)
