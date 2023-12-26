@@ -27,11 +27,13 @@ s32 g_NetMode = NETMODE_NONE;
 u32 g_NetServerUpdateRate = 1;
 u32 g_NetServerInRate = 128 * 1024;
 u32 g_NetServerOutRate = 128 * 1024;
+u32 g_NetServerPort = NET_DEFAULT_PORT;
+
 u32 g_NetClientUpdateRate = 1;
 u32 g_NetClientInRate = 128 * 1024;
 u32 g_NetClientOutRate = 128 * 1024;
+
 u32 g_NetInterpTicks = 6;
-u32 g_NetServerPort = NET_DEFAULT_PORT;
 char g_NetLastJoinAddr[NET_MAX_ADDR + 1] = "127.0.0.1:27100";
 
 u32 g_NetTick = 0;
@@ -227,6 +229,9 @@ static inline s32 netClientNeedReliableMove(const struct netclient *cl)
 
 static inline s32 netClientNeedMove(const struct netclient *cl)
 {
+	if (g_NetTick < g_NetNextUpdate) {
+		return false;
+	}
 	const struct netplayermove *move = &cl->outmove[0];
 	const struct netplayermove *moveprev = &cl->outmove[1];
 	if (move->tick && cl->outmoveack >= move->tick) {
@@ -681,29 +686,31 @@ void netEndFrame(void)
 	// send whatever messages have accumulated so far
 	netFlushSendBuffers();
 
-	if (g_NetTick >= g_NetNextUpdate) {
-		if (g_NetLocalClient->state == CLSTATE_GAME && g_NetLocalClient->player && g_NetLocalClient->player->prop) {
-			if (g_NetMode == NETMODE_CLIENT) {
+	if (g_NetLocalClient->state == CLSTATE_GAME && g_NetLocalClient->player && g_NetLocalClient->player->prop) {
+		if (g_NetMode == NETMODE_CLIENT) {
+			if (g_NetTick > 100) {
+				netClientRecordMove(g_NetLocalClient, g_NetLocalClient->player);
+				const bool needrel = netClientNeedReliableMove(g_NetLocalClient);
+				if (needrel || netClientNeedMove(g_NetLocalClient)) {
+					netmsgClcMoveWrite(needrel ? &g_NetMsgRel : &g_NetMsg);
+				}
+			}
+			if (g_NetNextUpdate <= g_NetTick) {
 				g_NetNextUpdate = g_NetTick + g_NetClientUpdateRate;
-				if (g_NetTick > 100) {
-					netClientRecordMove(g_NetLocalClient, g_NetLocalClient->player);
-					const bool needrel = netClientNeedReliableMove(g_NetLocalClient);
-					if (needrel || netClientNeedMove(g_NetLocalClient)) {
-						netmsgClcMoveWrite(needrel ? &g_NetMsgRel : &g_NetMsg);
+			}
+		} else {
+			for (s32 i = 0; i < g_NetMaxClients; ++i) {
+				struct netclient *cl = &g_NetClients[i];
+				if (cl->state >= CLSTATE_GAME && cl->player) {
+					netClientRecordMove(cl, cl->player);
+					const bool needrel = netClientNeedReliableMove(cl);
+					if (needrel || netClientNeedMove(cl)) {
+						netmsgSvcPlayerMoveWrite(needrel ? &g_NetMsgRel : &g_NetMsg, cl);
 					}
 				}
-			} else {
+			}
+			if (g_NetNextUpdate <= g_NetTick) {
 				g_NetNextUpdate = g_NetTick + g_NetServerUpdateRate;
-				for (s32 i = 0; i < g_NetMaxClients; ++i) {
-					struct netclient *cl = &g_NetClients[i];
-					if (cl->state >= CLSTATE_GAME && cl->player) {
-						netClientRecordMove(cl, cl->player);
-						const bool needrel = netClientNeedReliableMove(cl);
-						if (needrel || netClientNeedMove(cl)) {
-							netmsgSvcPlayerMoveWrite(needrel ? &g_NetMsgRel : &g_NetMsg, cl);
-						}
-					}
-				}
 			}
 		}
 	}
