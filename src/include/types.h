@@ -4096,9 +4096,15 @@ struct mpsetup {
 	/**
 	 * Each bit signifies that a player or sim is participating.
 	 *
+	 * In the original game:
 	 * Bits 0x000f are for players
 	 * Bits 0x0ff0 are for sims
 	 * Bits 0xf000 are probably not used
+	 * 
+	 * In the PC port:
+	 * Bits 0x00ff are for players
+	 * Bits 0xff00 are for sims
+	 * Externally loaded MP setups get automatically converted to this format.
 	 */
 	/*0x800acb9e*/ u16 chrslots;
 	/*0x800acba0*/ u8 weapons[NUM_MPWEAPONSLOTS];
