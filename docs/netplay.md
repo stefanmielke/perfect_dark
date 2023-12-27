@@ -27,6 +27,7 @@ Expect nothing to work right.
 
 ### Misc
 
+* Everyone has to have the same ROM. The game only compares the file name, but different regions in one game will definitely break everything.
 * Press `~` to bring up the console, press `F9` for network stats.
 * You can chat at any time during a net game by entering messages in the console and hitting Enter.
 * Server port and other network settings can be configured in `pd.ini`.
