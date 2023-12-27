@@ -172,6 +172,7 @@ u32 netmsgClcAuthRead(struct netbuf *src, struct netclient *srccl)
 	const u8 bodynum = netbufReadU8(src);
 	const u8 headnum = netbufReadU8(src);
 	char *name = netbufReadStr(src);
+
 	if (src->error) {
 		sysLogPrintf(LOG_WARNING, "NET: malformed CLC_AUTH from %s", netFormatClientAddr(srccl));
 		netServerKick(srccl, DISCONNECT_KICKED);
@@ -533,11 +534,6 @@ u32 netmsgSvcPlayerMoveWrite(struct netbuf *dst, struct netclient *movecl)
 
 u32 netmsgSvcPlayerMoveRead(struct netbuf *src, struct netclient *srccl)
 {
-	if (srccl->state != CLSTATE_GAME) {
-		sysLogPrintf(LOG_WARNING, "NET: SVC_PLAYER_MOVE from server but we're not in GAME state");
-		return 1;
-	}
-
 	u8 id = 0;
 	u32 outmoveack = 0;
 	struct netplayermove newmove;
@@ -550,7 +546,7 @@ u32 netmsgSvcPlayerMoveRead(struct netbuf *src, struct netclient *srccl)
 		netbufReadRooms(src, newrooms, ARRAYCOUNT(newrooms));
 	}
 
-	if (src->error) {
+	if (src->error || srccl->state < CLSTATE_GAME) {
 		return src->error;
 	}
 
@@ -632,6 +628,10 @@ u32 netmsgSvcPlayerStatsRead(struct netbuf *src, struct netclient *srccl)
 	}
 
 	struct netclient *actcl = g_NetClients + clid;
+	if (actcl->state < CLSTATE_GAME) {
+		return 1;
+	}
+
 	struct player *pl = actcl->player;
 	if (!pl || !pl->prop) {
 		return src->error;
@@ -744,6 +744,10 @@ u32 netmsgSvcPropMoveRead(struct netbuf *src, struct netclient *srccl)
 
 	if (src->error || !prop) {
 		return src->error;
+	}
+
+	if (srccl->state < CLSTATE_GAME) {
+		return 1;
 	}
 
 	prop->pos = pos;
@@ -899,6 +903,10 @@ u32 netmsgSvcPropSpawnRead(struct netbuf *src, struct netclient *srccl)
 
 	if (src->error) {
 		return src->error;
+	}
+
+	if (srccl->state < CLSTATE_GAME) {
+		return 1;
 	}
 
 	struct prop *prop = (type == PROPTYPE_OBJ && objtype == OBJTYPE_AUTOGUN) ? NULL : propAllocate();
@@ -1078,6 +1086,9 @@ u32 netmsgSvcPropDamageRead(struct netbuf *src, struct netclient *srccl)
 	const s8 weaponnum = netbufReadS8(src);
 	const s8 playernum = netbufReadS8(src);
 	const u32 hidden = netbufReadU32(src);
+	if (srccl->state < CLSTATE_GAME) {
+		return src->error;
+	}
 	if (prop && prop->obj && prop->type != PROPTYPE_PLAYER && prop->type != PROPTYPE_CHR && !src->error) {
 		prop->obj->damage = damagepre;
 		prop->obj->hidden = hidden;
@@ -1100,8 +1111,8 @@ u32 netmsgSvcPropPickupRead(struct netbuf *src, struct netclient *srccl)
 	const u8 clid = netbufReadU8(src);
 	const s8 tickop = netbufReadS8(src);
 	struct prop *prop = netbufReadPropPtr(src);
-	if (src->error || !prop) {
-		return 1;
+	if (src->error || !prop || srccl->state < CLSTATE_GAME) {
+		return src->error;
 	}
 
 	struct netclient *actcl = g_NetClients + clid;
@@ -1134,7 +1145,7 @@ u32 netmsgSvcPropUseRead(struct netbuf *src, struct netclient *srccl)
 	const u8 clid = netbufReadU8(src);
 	const s8 tickop = netbufReadS8(src);
 
-	if (!prop) {
+	if (!prop || srccl->state < CLSTATE_GAME) {
 		return src->error;
 	}
 
@@ -1191,7 +1202,7 @@ u32 netmsgSvcPropDoorRead(struct netbuf *src, struct netclient *srccl)
 
 	struct netclient *actcl = (clid == NET_NULL_CLIENT) ? NULL : &g_NetClients[clid];
 
-	if (!prop) {
+	if (!prop || srccl->state < CLSTATE_GAME) {
 		return src->error;
 	}
 
@@ -1283,7 +1294,7 @@ u32 netmsgSvcChrDamageRead(struct netbuf *src, struct netclient *srccl)
 		explosionposptr = &explosionpos;
 	}
 
-	if (src->error) {
+	if (src->error || srccl->state < CLSTATE_GAME) {
 		return src->error;
 	}
 
@@ -1325,7 +1336,7 @@ u32 netmsgSvcChrDisarmRead(struct netbuf *src, struct netclient *srccl)
 	const f32 weapondmg = netbufReadF32(src);
 	struct coord pos = { 0.f, 0.f, 0.f };
 
-	if (src->error) {
+	if (src->error || srccl->state < CLSTATE_GAME) {
 		return src->error;
 	}
 
