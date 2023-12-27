@@ -143,10 +143,17 @@ struct extplayerconfig g_PlayerExtCfg[MAX_LOCAL_PLAYERS] = {
  * value 0 will return 0.1
  * value 127 will return 1
  * value 255 will return 10
+ * in a netgame it's always 1
  */
 f32 mpHandicapToDamageScale(u8 value)
 {
 	f32 tmp;
+
+#ifndef PLATFORM_N64
+	if (g_NetMode) {
+		return 1.f;
+	}
+#endif
 
 	if (value < 127) {
 		return (value / 127.0f) * (value / 127.0f) * 0.9f + 0.1f;
