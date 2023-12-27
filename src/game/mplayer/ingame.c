@@ -173,6 +173,11 @@ MenuItemHandlerResult menuhandlerMpPause(s32 operation, struct menuitem *item, u
 	}
 
 	if (operation == MENUOP_CHECKHIDDEN) {
+#ifndef PLATFORM_N64
+		if (g_NetMode) {
+			return true;
+		}
+#endif
 		if (PLAYERCOUNT() == 1) {
 			return true;
 		}
