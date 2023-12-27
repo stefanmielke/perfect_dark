@@ -344,7 +344,7 @@ void netServerStageStart(void)
 
 	netbufStartWrite(&g_NetMsgRel);
 	netmsgSvcStageStartWrite(&g_NetMsgRel);
-	netSend(NULL, &g_NetMsgRel, true, NETCHAN_CONTROL);
+	netSend(NULL, &g_NetMsgRel, true, NETCHAN_DEFAULT);
 }
 
 void netServerStageEnd(void)
@@ -357,7 +357,7 @@ void netServerStageEnd(void)
 
 	netbufStartWrite(&g_NetMsgRel);
 	netmsgSvcStageEndWrite(&g_NetMsgRel);
-	netSend(NULL, &g_NetMsgRel, true, NETCHAN_CONTROL);
+	netSend(NULL, &g_NetMsgRel, true, NETCHAN_DEFAULT);
 }
 
 void netServerKick(struct netclient *cl, const u32 reason)
