@@ -159,6 +159,13 @@ bool doorCallLift(struct prop *doorprop, bool allowclose)
 	struct doorobj *door = doorprop->door;
 	bool handled = false;
 
+#ifndef PLATFORM_N64
+	if (g_NetMode == NETMODE_CLIENT) {
+		// don't automatically do anything with lifts
+		return handled;
+	}
+#endif
+
 	if (door->base.hidden & OBJHFLAG_LIFTDOOR) {
 		struct linkliftdoorobj *link = g_LiftDoors;
 
@@ -5089,6 +5096,11 @@ void liftGoToStop(struct liftobj *lift, s32 stopnum)
 			// Sanity check to make sure lift is actually not moving
 			if (lift->dist == 0 && lift->speed == 0) {
 				lift->levelaim = stopnum;
+#ifndef PLATFORM_N64
+				if (g_NetMode == NETMODE_SERVER) {
+					netmsgSvcPropLiftWrite(&g_NetMsgRel, lift->base.prop);
+				}
+#endif
 				return;
 			}
 		}
@@ -5135,6 +5147,12 @@ void liftGoToStop(struct liftobj *lift, s32 stopnum)
 			lift->speed = -lift->speed;
 			lift->levelaim = stopnum;
 		}
+
+#ifndef PLATFORM_N64
+		if (g_NetMode == NETMODE_SERVER) {
+			netmsgSvcPropLiftWrite(&g_NetMsgRel, lift->base.prop);
+		}
+#endif
 	}
 }
 

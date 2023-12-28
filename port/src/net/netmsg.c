@@ -1168,10 +1168,12 @@ u32 netmsgSvcPropUseRead(struct netbuf *src, struct netclient *srccl)
 	switch (prop->type) {
 		case PROPTYPE_OBJ:
 		case PROPTYPE_WEAPON:
-			ownop = propobjInteract(prop);
+			if (!prop->obj || prop->obj->type != OBJTYPE_LIFT) {
+				ownop = propobjInteract(prop);
+			}
 			break;
 		default:
-			// NOTE: doors are handled with SVC_PROP_DOOR
+			// NOTE: doors and lifts are handled with SVC_PROP_DOOR/_LIFT
 			// TODO: eventually remove this message completely
 			ownop = TICKOP_NONE;
 			break;
@@ -1232,6 +1234,72 @@ u32 netmsgSvcPropDoorRead(struct netbuf *src, struct netclient *srccl)
 
 	if (actcl) {
 		setCurrentPlayerNum(prevplayernum);
+	}
+
+	return src->error;
+}
+
+u32 netmsgSvcPropLiftWrite(struct netbuf *dst, struct prop *prop)
+{
+	if (prop->type != PROPTYPE_OBJ || !prop->obj || prop->obj->type != OBJTYPE_LIFT) {
+		return dst->error;
+	}
+
+	struct liftobj *lift = (struct liftobj *)prop->obj;
+
+	netbufWriteU8(dst, SVC_PROP_LIFT);
+	netbufWritePropPtr(dst, prop);
+	netbufWriteS8(dst, lift->levelcur);
+	netbufWriteS8(dst, lift->levelaim);
+	netbufWriteF32(dst, lift->accel);
+	netbufWriteF32(dst, lift->speed);
+	netbufWriteF32(dst, lift->dist);
+	netbufWriteU32(dst, lift->base.flags);
+	netbufWriteCoord(dst, &prop->pos);
+	netbufWriteRooms(dst, prop->rooms, ARRAYCOUNT(prop->rooms));
+
+	return dst->error;
+}
+
+u32 netmsgSvcPropLiftRead(struct netbuf *src, struct netclient *srccl)
+{
+	struct prop *prop = netbufReadPropPtr(src);
+	const s8 levelcur = netbufReadS8(src);
+	const s8 levelaim = netbufReadS8(src);
+	const f32 accel = netbufReadF32(src);
+	const f32 speed = netbufReadF32(src);
+	const f32 dist = netbufReadF32(src);
+	const u32 flags = netbufReadU32(src);
+	struct coord pos; netbufReadCoord(src, &pos);
+	RoomNum rooms[8]; netbufReadRooms(src, rooms, ARRAYCOUNT(rooms));
+
+	if (!prop || srccl->state < CLSTATE_GAME) {
+		return src->error;
+	}
+
+	if (!prop->obj || prop->type != PROPTYPE_OBJ || prop->obj->type != OBJTYPE_LIFT) {
+		sysLogPrintf(LOG_WARNING, "NET: SVC_PROP_LIFT: prop %u should be a lift, but isn't", prop->syncid);
+		return src->error;
+	}
+
+	struct liftobj *lift = (struct liftobj *)prop->obj;
+	lift->levelcur = levelcur;
+	lift->levelaim = levelaim;
+	lift->speed = speed;
+	lift->dist = dist;
+	lift->accel = accel;
+	lift->base.flags = flags;
+
+	prop->pos = pos;
+
+	if (!propRoomsEqual(rooms, prop->rooms)) {
+		if (prop->active) {
+			propDeregisterRooms(prop);
+		}
+		roomsCopy(rooms, prop->rooms);
+		if (prop->active) {
+			propRegisterRooms(prop);
+		}
 	}
 
 	return src->error;
