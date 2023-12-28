@@ -1170,6 +1170,8 @@ u32 netmsgSvcPropUseRead(struct netbuf *src, struct netclient *srccl)
 		case PROPTYPE_WEAPON:
 			if (!prop->obj || prop->obj->type != OBJTYPE_LIFT) {
 				ownop = propobjInteract(prop);
+			} else {
+				ownop = TICKOP_NONE;
 			}
 			break;
 		default:
