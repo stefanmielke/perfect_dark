@@ -164,6 +164,7 @@ static inline void netClientReset(struct netclient *cl)
 	cl->out.data = cl->out_data;
 	cl->out.size = sizeof(cl->out_data);
 	cl->id = cl - g_NetClients;
+	cl->settings.team = 0xff;
 }
 
 static inline void netClientResetAll(void)

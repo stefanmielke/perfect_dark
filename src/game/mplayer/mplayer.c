@@ -2996,6 +2996,13 @@ struct mpchrconfig *mpGetChrConfigBySlotNum(s32 slot)
 		}
 	}
 
+#ifndef PLATFORM_N64
+	// ignore chrslots while setting up a netgame
+	if (!result && g_NetMode && slot < g_NetMaxClients && g_NetClients[slot].state >= CLSTATE_LOBBY) {
+		result = &g_PlayerConfigsArray[slot].base;
+	}
+#endif
+
 	return result;
 }
 
