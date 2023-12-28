@@ -4919,6 +4919,12 @@ void playerDie(bool force)
 	}
 
 	playerDieByShooter(shooter, force);
+
+#ifndef PLATFORM_N64
+	if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->client) {
+		netmsgSvcPlayerStatsWrite(&g_NetMsgRel, g_Vars.currentplayer->client);
+	}
+#endif
 }
 
 void playerDieByShooter(u32 shooter, bool force)
