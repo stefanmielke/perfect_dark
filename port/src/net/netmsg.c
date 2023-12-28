@@ -510,6 +510,7 @@ u32 netmsgSvcStageEndRead(struct netbuf *src, struct netclient *srccl)
 		}
 	}
 
+	g_NumReasonsToEndMpMatch = 1;
 	mainEndStage();
 
 	return src->error;
