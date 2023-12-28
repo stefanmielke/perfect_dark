@@ -328,6 +328,7 @@ s32 netStartServer(u16 port, s32 maxclients)
 	g_NetNextUpdate = 0;
 	g_NetNextSyncId = 1;
 
+	sysLogPrintf(LOG_NOTE, "NET: using protocol version %d", NET_PROTOCOL_VER);
 	sysLogPrintf(LOG_NOTE, "NET: created server on port %u", port);
 
 	return 0;
@@ -404,6 +405,7 @@ s32 netStartClient(const char *addr)
 	// for now use last client struct
 	g_NetLocalClient = &g_NetClients[NET_MAX_CLIENTS];
 
+	sysLogPrintf(LOG_NOTE, "NET: using protocol version %d", NET_PROTOCOL_VER);
 	sysLogPrintf(LOG_NOTE, "NET: connecting to %s...", addr);
 
 	g_NetLocalClient->peer = enet_host_connect(g_NetHost, &g_NetRemoteAddr, NETCHAN_COUNT, NET_PROTOCOL_VER);
