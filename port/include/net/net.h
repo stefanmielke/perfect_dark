@@ -103,6 +103,9 @@ extern s32 g_NetMode;
 extern u32 g_NetTick;
 extern u32 g_NetNextSyncId;
 
+extern u64 g_NetRngSeeds[2];
+extern u32 g_NetRngLatch;
+
 extern u32 g_NetInterpTicks;
 extern u32 g_NetServerPort;
 extern char g_NetLastJoinAddr[NET_MAX_ADDR + 1];
@@ -134,6 +137,8 @@ void netChat(const char *text);
 void netServerStageStart(void);
 void netServerStageEnd(void);
 void netServerKick(struct netclient *cl, const u32 reason);
+
+void netClientSyncRng(void);
 
 void netPlayersAllocate(void);
 void netSyncIdsAllocate(void);

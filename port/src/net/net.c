@@ -42,6 +42,9 @@ u32 g_NetNextSyncId = 1;
 s32 g_NetSimPacketLoss = 0;
 s32 g_NetDebugDraw = 0;
 
+u64 g_NetRngSeeds[2];
+u32 g_NetRngLatch = 0;
+
 s32 g_NetMaxClients = NET_MAX_CLIENTS;
 s32 g_NetNumClients = 0;
 struct netclient g_NetClients[NET_MAX_CLIENTS + 1]; // last is an extra temporary client
@@ -602,6 +605,15 @@ static void netClientEvReceive(struct netclient *cl)
 
 	if (rc) {
 		sysLogPrintf(LOG_WARNING, "NET: malformed or unknown message 0x%02x from server", msgid);
+	}
+}
+
+void netClientSyncRng(void)
+{
+	if (g_NetMode == NETMODE_CLIENT && g_NetRngLatch) {
+		g_NetRngLatch = 0;
+		g_RngSeed = g_NetRngSeeds[0];
+		g_Rng2Seed = g_NetRngSeeds[1];
 	}
 }
 

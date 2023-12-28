@@ -29,9 +29,6 @@
 #include "net/netbuf.h"
 #include "net/netmsg.h"
 
-extern u64 g_RngSeed;
-extern u64 g_Rng2Seed;
-
 /* utils */
 
 static inline u32 netbufWriteRooms(struct netbuf *buf, const s16 *rooms, const s32 num)
@@ -404,8 +401,9 @@ u32 netmsgSvcStageStartRead(struct netbuf *src, struct netclient *srccl)
 
 	g_NetTick = netbufReadU32(src);
 
-	g_RngSeed = netbufReadU64(src);
-	g_Rng2Seed = netbufReadU64(src);
+	g_NetRngSeeds[0] = netbufReadU64(src);
+	g_NetRngSeeds[1] = netbufReadU64(src);
+	g_NetRngLatch = true;
 
 	const u8 stagenum = netbufReadU8(src);
 

@@ -513,6 +513,8 @@ extern u8 g_ChrBioSlot;
 extern u8 g_HangarBioSlot;
 extern u8 g_DtSlot;
 extern u8 var80088bb4;
+extern u64 g_RngSeed;
+extern u64 g_Rng2Seed;
 extern struct vtxstoretype g_VtxstoreTypes[4];
 extern struct menudialogdef g_FrWeaponListMenuDialog;
 extern struct menudialogdef g_FrTrainingInfoInGameMenuDialog;

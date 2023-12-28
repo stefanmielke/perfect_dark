@@ -324,8 +324,13 @@ void lvReset(s32 stagenum)
 		s32 j;
 
 #ifndef PLATFORM_N64
-		// if we're a server, signal to clients that the level is changing
-		netServerStageStart();
+		if (g_NetMode == NETMODE_SERVER) {
+			// if we're a server, signal to clients that the level is changing
+			netServerStageStart();
+		} else if (g_NetMode == NETMODE_CLIENT) {
+			// if we're a client, now is the time to apply the server's RNG seeds
+			netClientSyncRng();
+		}
 #endif
 
 		tilesReset();
