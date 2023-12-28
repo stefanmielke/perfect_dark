@@ -2246,6 +2246,9 @@ void lvTick(void)
 
 			if (elapsed < TICKS(g_MpTimeLimit60) && nexttime >= TICKS(g_MpTimeLimit60)) {
 				// Match is ending due to time limit reached
+#ifndef PLATFORM_N64
+				if (g_NetMode != NETMODE_CLIENT)
+#endif
 				mainEndStage();
 			}
 
@@ -2298,6 +2301,12 @@ void lvTick(void)
 					}
 				}
 			}
+
+#ifndef PLATFORM_N64
+			if (g_NetMode == NETMODE_CLIENT) {
+				g_NumReasonsToEndMpMatch = 0;
+			}
+#endif
 
 			if (g_NumReasonsToEndMpMatch > 0 && numdying == 0) {
 				mainEndStage();
