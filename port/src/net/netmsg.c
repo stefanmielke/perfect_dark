@@ -686,8 +686,8 @@ u32 netmsgSvcPlayerStatsRead(struct netbuf *src, struct netclient *srccl)
 
 	const bool dualwielding = (flags & (1 << 1)) != 0;
 	if (!pl->isdead && (newweaponnum != pl->gunctrl.weaponnum || dualwielding != pl->gunctrl.dualwielding)) {
-		bgunEquipWeapon(newweaponnum);
 		pl->gunctrl.dualwielding = dualwielding;
+		bgunEquipWeapon(newweaponnum);
 	}
 
 	setCurrentPlayerNum(prevplayernum);
@@ -875,6 +875,7 @@ u32 netmsgSvcPropSpawnWrite(struct netbuf *dst, struct prop *prop)
 		netbufWriteU32(dst, prop->obj->hidden);
 		netbufWriteU8(dst, prop->obj->hidden2);
 		netbufWriteU16(dst, prop->obj->extrascale);
+		netbufWriteS16(dst, prop->obj->pad);
 		for (s32 i = 0; i < 3; ++i) {
 			for (s32 j = 0; j < 3; ++j) {
 				netbufWriteF32(dst, prop->obj->realrot[i][j]);
@@ -1019,6 +1020,7 @@ u32 netmsgSvcPropSpawnRead(struct netbuf *src, struct netclient *srccl)
 		u32 hidden = netbufReadU32(src);
 		const u8 hidden2 = netbufReadU8(src);
 		const u16 extrascale = netbufReadU16(src);
+		const s16 pad = netbufReadS16(src);
 		for (s32 i = 0; i < 3; ++i) {
 			for (s32 j = 0; j < 3; ++j) {
 				prop->obj->realrot[i][j] = netbufReadF32(src);
@@ -1059,6 +1061,7 @@ u32 netmsgSvcPropSpawnRead(struct netbuf *src, struct netclient *srccl)
 			prop->obj->hidden = hidden;
 			prop->obj->hidden2 = hidden2;
 			prop->obj->extrascale = extrascale;
+			prop->obj->pad = pad;
 			if (prop->obj->model) {
 				modelSetScale(prop->obj->model, prop->obj->model->scale * ((f32)extrascale / 256.f));
 			}

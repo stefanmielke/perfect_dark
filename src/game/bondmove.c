@@ -149,7 +149,10 @@ static inline void bmoveProcessRemoteInput(const bool allowc1buttons)
 	pl->crosspos[1] = inmove->crosspos[1];
 
 	if (inmove->ucmd & UCMD_SELECT) {
-		bgunEquipWeapon(inmove->weaponnum);
+		pl->gunctrl.dualwielding = (inmove->ucmd & UCMD_SELECT_DUAL) != 0;
+		if (inmove->weaponnum >= 0) {
+			bgunEquipWeapon(inmove->weaponnum);
+		}
 	}
 
 	const bool fireguns = (inmove->ucmd & UCMD_FIRE) &&

@@ -208,6 +208,13 @@ static inline void netClientRecordMove(struct netclient *cl, const struct player
 		move->weaponnum = -1;
 	}
 
+	if (pl->gunctrl.dualwielding) {
+		move->ucmd |= UCMD_SELECT_DUAL;
+		if ((move->ucmd ^ cl->outmove[1].ucmd) & UCMD_SELECT_DUAL) {
+			move->ucmd |= UCMD_SELECT;
+		}
+	}
+
 	const s32 oldnum = g_Vars.currentplayernum;
 	setCurrentPlayerNum(cl->playernum);
 

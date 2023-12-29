@@ -5,7 +5,7 @@
 #include "constants.h"
 #include "net/netbuf.h"
 
-#define NET_PROTOCOL_VER 5
+#define NET_PROTOCOL_VER 6
 
 #define NET_MAX_CLIENTS MAX_PLAYERS
 #define NET_MAX_NAME MAX_PLAYERNAME
@@ -46,11 +46,12 @@
 #define UCMD_SQUAT (1 << 5)
 #define UCMD_ZOOMIN (1 << 6)
 #define UCMD_SELECT (1 << 7)
-#define UCMD_EYESSHUT (1 << 8)
-#define UCMD_SECONDARY (1 << 9)
+#define UCMD_SELECT_DUAL (1 << 8)
+#define UCMD_EYESSHUT (1 << 9)
+#define UCMD_SECONDARY (1 << 10)
 #define UCMD_RESPAWN (1 << 27)
 #define UCMD_CHAT (1 << 28)
-#define UCMD_IMPORTANT_MASK (UCMD_FIRE | UCMD_ACTIVATE | UCMD_RELOAD | UCMD_AIMMODE | UCMD_SELECT)
+#define UCMD_IMPORTANT_MASK (UCMD_FIRE | UCMD_ACTIVATE | UCMD_RELOAD | UCMD_AIMMODE | UCMD_SELECT | UCMD_SELECT_DUAL)
 #define UCMD_FL_FORCEPOS (1 << 29)
 #define UCMD_FL_FORCEANGLE (1 << 30)
 #define UCMD_FL_FORCEGROUND (1 << 31)
