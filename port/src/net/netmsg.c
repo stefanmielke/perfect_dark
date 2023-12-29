@@ -452,19 +452,11 @@ u32 netmsgSvcStageStartRead(struct netbuf *src, struct netclient *srccl)
 				sysLogPrintf(LOG_WARNING, "NET: malformed SVC_STAGE from server");
 				return 3;
 			}
-			// if this is the server player, set team on server's player config
-			if (ncl->id == 0) {
-				g_PlayerConfigsArray[g_NetLocalClient->id].base.team = ncl->settings.team;
-			} else {
-				g_PlayerConfigsArray[ncl->id].base.team = ncl->settings.team;
-			}
 		} else {
 			// skip our own settings except for the team
 			netbufReadU8(src);
 			netbufReadU8(src);
 			netbufReadStr(src);
-			// set team on the player 0 config
-			g_PlayerConfigsArray[0].base.team = ncl->settings.team;
 		}
 		ncl->state = CLSTATE_GAME;
 		ncl->player = NULL;
@@ -472,6 +464,22 @@ u32 netmsgSvcStageStartRead(struct netbuf *src, struct netclient *srccl)
 
 	if (src->error) {
 		return src->error;
+	}
+
+	// set teams on the player configs, but swap teams with the server player
+	for (u32 i = 0; i < NET_MAX_CLIENTS; ++i) {
+		struct netclient *ncl = &g_NetClients[i];
+		if (ncl->state) {
+			u32 playernum = 0;
+			if (ncl->id == 0) {
+				playernum = g_NetLocalClient->id;
+			} else if (ncl == g_NetLocalClient) {
+				playernum = 0;
+			} else {
+				playernum = ncl->id;
+			}
+			g_PlayerConfigsArray[playernum].base.team = ncl->settings.team;
+		}
 	}
 
 	g_NetNumClients = numplayers;
