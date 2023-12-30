@@ -987,6 +987,13 @@ void hudmsgCreateFromArgs(char *text, s32 type, s32 conf00, s32 conf01, s32 conf
 		return;
 	}
 
+#ifndef PLATFORM_N64
+	if (g_NetMode && g_Vars.currentplayernum != 0) {
+		// do not create hudmsgs for other net players
+		return;
+	}
+#endif
+
 	for (j = 0; text[j] != '\0'; j++) {
 		hash = hash + text[j];
 	}
