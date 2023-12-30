@@ -107,5 +107,6 @@ void playerSetCamPropertiesWithoutRoom(struct coord *pos, struct coord *up, stru
 void playerSetCamProperties(struct coord *pos, struct coord *up, struct coord *look, s32 room);
 void playerClearMemCamRoom(void);
 s32 playerGetCount(void);
+struct sndstate *playerSndStart(s32 arg0, s16 sound, struct sndstate **handle, s32 playernum, f32 pitch, s32 fxbus, s32 fxmix);
 
 #endif

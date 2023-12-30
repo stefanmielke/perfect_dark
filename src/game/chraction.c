@@ -4042,7 +4042,7 @@ void chrChoke(struct chrdata *chr, s32 choketype)
 	if (soundnum >= 0) {
 		if (chr->prop->type == PROPTYPE_PLAYER) {
 			if (g_Vars.players[playernum]->chokehandle == NULL) {
-				sndStart(var80095200, soundnum, &g_Vars.players[playernum]->chokehandle, -1, -1, -1, -1, -1);
+				playerSndStart(var80095200, soundnum, &g_Vars.players[playernum]->chokehandle, playernum, -1, -1, -1);
 			}
 		} else {
 			psStopSound(chr->prop, PSTYPE_CHRTALK, 0);

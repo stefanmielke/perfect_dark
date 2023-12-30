@@ -5848,6 +5848,20 @@ void player0f0c3320(Mtxf *matrices, s32 count)
 	}
 }
 
+struct sndstate *playerSndStart(s32 arg0, s16 sound, struct sndstate **handle, s32 playernum, f32 pitch, s32 fxbus, s32 fxmix)
+{
+	s32 vol = -1;
+	s32 pan = -1;
+#ifndef PLATFORM_N64
+	const struct player *pl = g_Vars.players[playernum];
+	if (g_NetMode && playernum != 0 && pl && pl->prop) {
+		// auto attenuate sounds for remote players
+		psGetTheoreticalVolPan(&pl->prop->pos, pl->prop->rooms, sound, &vol, &pan);
+	}
+#endif
+	return sndStart(arg0, sound, handle, vol, pan, pitch, fxbus, fxmix);
+}
+
 #if MAX_PLAYERS > 4
 
 s32 playerGetCount(void)

@@ -16890,7 +16890,7 @@ void ammotypePlayPickupSound(u32 ammotype)
 	case AMMOTYPE_CLOAK:
 	case AMMOTYPE_BOOST:
 	case AMMOTYPE_TOKEN:
-		sndStart(var80095200, SFX_PICKUP_AMMO, NULL, -1, -1, -1, -1, -1);
+		playerSndStart(var80095200, SFX_PICKUP_AMMO, NULL, g_Vars.currentplayernum, -1, -1, -1);
 		break;
 	case AMMOTYPE_REMOTE_MINE:
 	case AMMOTYPE_PROXY_MINE:
@@ -16899,10 +16899,10 @@ void ammotypePlayPickupSound(u32 ammotype)
 	case AMMOTYPE_MICROCAMERA:
 	case AMMOTYPE_PLASTIQUE:
 	case AMMOTYPE_ECM_MINE:
-		sndStart(var80095200, SFX_PICKUP_MINE, NULL, -1, -1, -1, -1, -1);
+		playerSndStart(var80095200, SFX_PICKUP_MINE, NULL, g_Vars.currentplayernum, -1, -1, -1);
 		break;
 	case AMMOTYPE_KNIFE:
-		sndStart(var80095200, SFX_PICKUP_KNIFE, NULL, -1, -1, -1, -1, -1);
+		playerSndStart(var80095200, SFX_PICKUP_KNIFE, NULL, g_Vars.currentplayernum, -1, -1, -1);
 		break;
 	}
 }
@@ -16967,7 +16967,7 @@ void weaponPlayPickupSound(s32 weaponnum)
 		sound = SFX_PICKUP_GUN;
 	}
 
-	sndStart(var80095200, sound, NULL, -1, -1, -1, -1, -1);
+	playerSndStart(var80095200, sound, NULL, g_Vars.currentplayernum, -1, -1, -1);
 }
 
 void ammotypeGetPickupMessage(char *dst, s32 ammotype, s32 qty)
@@ -17280,7 +17280,7 @@ s32 propPickupByPlayer(struct prop *prop, bool showhudmsg)
 	switch (obj->type) {
 	case OBJTYPE_KEY:
 		if (g_Vars.in_cutscene == false) {
-			sndStart(var80095200, SFX_PICKUP_KEYCARD, NULL, -1, -1, -1, -1, -1);
+			playerSndStart(var80095200, SFX_PICKUP_KEYCARD, NULL, g_Vars.currentplayernum, -1, -1, -1);
 		}
 
 		if (showhudmsg) {
@@ -17320,7 +17320,7 @@ s32 propPickupByPlayer(struct prop *prop, bool showhudmsg)
 			}
 
 			if (g_Vars.in_cutscene == false) {
-				sndStart(var80095200, SFX_PICKUP_AMMO, NULL, -1, -1, -1, -1, -1);
+				playerSndStart(var80095200, SFX_PICKUP_AMMO, NULL, g_Vars.currentplayernum, -1, -1, -1);
 			}
 
 			result = TICKOP_FREE;
@@ -17473,7 +17473,7 @@ s32 propPickupByPlayer(struct prop *prop, bool showhudmsg)
 			playerSetShieldFrac(((struct shieldobj *) prop->obj)->amount);
 
 			if (!g_Vars.in_cutscene) {
-				sndStart(var80095200, SFX_PICKUP_SHIELD, NULL, -1, -1, -1, -1, -1);
+				playerSndStart(var80095200, SFX_PICKUP_SHIELD, NULL, g_Vars.currentplayernum, -1, -1, -1);
 			}
 
 			if (showhudmsg) {
@@ -17510,7 +17510,7 @@ s32 propPickupByPlayer(struct prop *prop, bool showhudmsg)
 	case OBJTYPE_TINTEDGLASS:
 	default:
 		if (g_Vars.in_cutscene == false) {
-			sndStart(var80095200, SFX_PICKUP_KEYCARD, NULL, -1, -1, -1, -1, -1);
+			playerSndStart(var80095200, SFX_PICKUP_KEYCARD, NULL, g_Vars.currentplayernum, -1, -1, -1);
 		}
 
 		if (showhudmsg) {
