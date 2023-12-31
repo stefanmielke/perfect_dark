@@ -38,11 +38,10 @@ Expect nothing to work right.
 ### Known issues
 
 * Clients can't throw laptop guns.
-* Clients can't dual wield most of the time.
 * Clients see rocket rotation incorrectly.
 * Clients can't use Slayer fly-by-wire rockets and they will not correctly sync if the server uses them.
+* Clients can't use the alt fire mode on the FarSight and probably a couple other guns.
 * Cloaking device is not synced.
 * Most likely only Combat works properly.
 * Sims don't work in netgames.
-* Pause is not disabled, but will probably break the game. Do not use it.
-* Bandwidth consumption on the server is excessively large on the default settings, probably up to 100kbps with 8 players.
+* Bandwidth consumption on the server is pretty large on the default settings, especially with 8 players.
