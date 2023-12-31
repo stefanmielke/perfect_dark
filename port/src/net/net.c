@@ -868,7 +868,7 @@ void netChat(const char *text)
 	}
 
 	if (g_NetMode == NETMODE_SERVER) {
-		sysLogPrintf(LOG_CHAT, tmp);
+		sysLogPrintf(LOG_CHAT, "%s", tmp);
 		netmsgSvcChatWrite(&g_NetMsgRel, tmp);
 	} else {
 		netmsgClcChatWrite(&g_NetMsgRel, tmp);

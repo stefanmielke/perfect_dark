@@ -221,7 +221,7 @@ u32 netmsgClcChatRead(struct netbuf *src, struct netclient *srccl)
 	char tmp[1024];
 	const char *msg = netbufReadStr(src);
 	if (msg && !src->error) {
-		sysLogPrintf(LOG_CHAT, msg);
+		sysLogPrintf(LOG_CHAT, "%s", msg);
 		netbufStartWrite(&g_NetMsgRel);
 		netmsgSvcChatWrite(&g_NetMsgRel, msg);
 		netSend(NULL, &g_NetMsgRel, true, NETCHAN_DEFAULT);
@@ -341,7 +341,7 @@ u32 netmsgSvcChatRead(struct netbuf *src, struct netclient *srccl)
 	char tmp[1024];
 	const char *msg = netbufReadStr(src);
 	if (msg && !src->error) {
-		sysLogPrintf(LOG_CHAT, msg);
+		sysLogPrintf(LOG_CHAT, "%s", msg);
 	}
 	return src->error;
 }
