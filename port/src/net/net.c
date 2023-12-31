@@ -193,7 +193,13 @@ static inline void netClientRecordMove(struct netclient *cl, const struct player
   move->pos = (pl->prop) ? pl->prop->pos : pl->cam_pos;
 	move->crosspos[0] = pl->crosspos[0];
 	move->crosspos[1] = pl->crosspos[1];
+
 	move->ucmd = pl->ucmd;
+
+	if (g_NetMode == NETMODE_SERVER && pl->isremote && cl->inmove[0].tick) {
+		// carry some of the client inputs over to the outmove
+		move->ucmd |= (cl->inmove[0].ucmd & (UCMD_FIRE | UCMD_RELOAD | UCMD_AIMMODE | UCMD_EYESSHUT | UCMD_SELECT | UCMD_SELECT_DUAL));
+	}
 
 	if (pl->crouchpos == CROUCHPOS_DUCK) {
 		move->ucmd |= UCMD_DUCK;
