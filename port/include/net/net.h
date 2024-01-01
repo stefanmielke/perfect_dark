@@ -5,7 +5,7 @@
 #include "constants.h"
 #include "net/netbuf.h"
 
-#define NET_PROTOCOL_VER 7
+#define NET_PROTOCOL_VER 8
 
 #define NET_MAX_CLIENTS MAX_PLAYERS
 #define NET_MAX_NAME MAX_PLAYERNAME
