@@ -78,6 +78,7 @@ struct netclient {
 
 	struct {
 		char name[NET_MAX_NAME];
+		u16 options;
 		u8 headnum;
 		u8 bodynum;
 		u8 team;

@@ -2683,7 +2683,13 @@ void bmoveUpdateHead(f32 arg0, f32 arg1, f32 arg2, Mtxf *arg3, f32 arg4)
 	bheadUpdate(sp244, arg2);
 	mtx4LoadXRotation(BADDEG2RAD(360 - g_Vars.currentplayer->vv_verta360), &sp180);
 
+#ifdef PLATFORM_N64
 	if (optionsGetHeadRoll(g_Vars.currentplayerstats->mpindex)) {
+#else
+	// in net games only allow headroll in the death animation
+	// TODO: figure out how to deal with headroll in other situations
+	if (optionsGetHeadRoll(g_Vars.currentplayerstats->mpindex) && (!g_NetMode || g_Vars.currentplayer->isdead)) {
+#endif
 		mtx00016d58(&sp116,
 				0, 0, 0,
 				-g_Vars.currentplayer->headlook.x, -g_Vars.currentplayer->headlook.y, -g_Vars.currentplayer->headlook.z,

@@ -157,6 +157,7 @@ u32 netmsgClcAuthWrite(struct netbuf *dst)
 	netbufWriteStr(dst, g_RomName); // TODO: use a CRC or something
 	netbufWriteStr(dst, modDir);
 	netbufWriteU8(dst, 1); // TODO: number of local players
+	netbufWriteU16(dst, g_NetLocalClient->settings.options);
 	netbufWriteU8(dst, g_NetLocalClient->settings.bodynum);
 	netbufWriteU8(dst, g_NetLocalClient->settings.headnum);
 	netbufWriteF32(dst, g_NetLocalClient->settings.fovy);
@@ -176,6 +177,7 @@ u32 netmsgClcAuthRead(struct netbuf *src, struct netclient *srccl)
 	const char *romName = netbufReadStr(src);
 	const char *modDir = netbufReadStr(src);
 	const u8 players = netbufReadU8(src);
+	const u16 options = netbufReadU16(src);
 	const u8 bodynum = netbufReadU8(src);
 	const u8 headnum = netbufReadU8(src);
 	const f32 fovy = netbufReadF32(src);
@@ -206,6 +208,7 @@ u32 netmsgClcAuthRead(struct netbuf *src, struct netclient *srccl)
 	}
 
 	strncpy(srccl->settings.name, name, sizeof(srccl->settings.name) - 1);
+	srccl->settings.options = options;
 	srccl->settings.bodynum = bodynum;
 	srccl->settings.headnum = headnum;
 	srccl->settings.fovy = fovy;
@@ -394,6 +397,7 @@ u32 netmsgSvcStageStartWrite(struct netbuf *dst)
 			ncl->settings.team = g_PlayerConfigsArray[ncl->id].base.team;
 			netbufWriteU8(dst, ncl->id);
 			netbufWriteU8(dst, ncl->settings.team);
+			netbufWriteU16(dst, ncl->settings.options);
 			netbufWriteU8(dst, ncl->settings.bodynum);
 			netbufWriteU8(dst, ncl->settings.headnum);
 			netbufWriteF32(dst, ncl->settings.fovy);
@@ -459,6 +463,7 @@ u32 netmsgSvcStageStartRead(struct netbuf *src, struct netclient *srccl)
 		ncl->settings.team = netbufReadU8(src);
 		if (ncl != g_NetLocalClient) {
 			ncl->id = id;
+			ncl->settings.options = netbufReadU16(src);
 			ncl->settings.bodynum = netbufReadU8(src);
 			ncl->settings.headnum = netbufReadU8(src);
 			ncl->settings.fovy = netbufReadF32(src);
@@ -472,6 +477,7 @@ u32 netmsgSvcStageStartRead(struct netbuf *src, struct netclient *srccl)
 			}
 		} else {
 			// skip our own settings except for the team
+			netbufReadU16(src);
 			netbufReadU8(src);
 			netbufReadU8(src);
 			netbufReadF32(src);

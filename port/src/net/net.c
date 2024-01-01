@@ -276,6 +276,21 @@ static inline s32 netClientNeedMove(const struct netclient *cl)
 	return (memcmp(cmpa, cmpb, sizeof(*move) - sizeof(move->tick)) != 0);
 }
 
+static inline void netClientReadConfig(struct netclient *cl, const s32 playernum)
+{
+	cl->settings.options = g_PlayerConfigsArray[playernum].options;
+	cl->settings.bodynum = g_PlayerConfigsArray[playernum].base.mpbodynum;
+	cl->settings.headnum = g_PlayerConfigsArray[playernum].base.mpheadnum;
+	cl->settings.fovy = g_PlayerExtCfg[playernum].fovy;
+	cl->settings.fovzoommult = g_PlayerExtCfg[playernum].fovzoommult;
+	memcpy(cl->settings.name, g_PlayerConfigsArray[playernum].base.name, sizeof(cl->settings.name));
+	// the \n will be readded in the playerconfig
+	char *newline = strrchr(g_NetLocalClient->settings.name, '\n');
+	if (newline) {
+		*newline = '\0';
+	}
+}
+
 static inline void netFlushSendBuffers(void)
 {
 	if (g_NetMsgRel.wp) {
@@ -343,16 +358,7 @@ s32 netStartServer(u16 port, s32 maxclients)
 	// the server's local client is client 0
 	g_NetLocalClient = &g_NetClients[0];
 	g_NetLocalClient->state = CLSTATE_LOBBY; // local client doesn't need auth
-	g_NetLocalClient->settings.bodynum = g_PlayerConfigsArray[0].base.mpbodynum;
-	g_NetLocalClient->settings.headnum = g_PlayerConfigsArray[0].base.mpheadnum;
-	g_NetLocalClient->settings.fovy = g_PlayerExtCfg[0].fovy;
-	g_NetLocalClient->settings.fovzoommult = g_PlayerExtCfg[0].fovzoommult;
-	memcpy(g_NetLocalClient->settings.name, g_PlayerConfigsArray[0].base.name, sizeof(g_NetLocalClient->settings.name));
-	// the \n will be readded in the playerconfig
-	char *newline = strrchr(g_NetLocalClient->settings.name, '\n');
-	if (newline) {
-		*newline = '\0';
-	}
+	netClientReadConfig(g_NetLocalClient, 0);
 
 	g_NetMode = NETMODE_SERVER;
 
@@ -376,6 +382,9 @@ void netServerStageStart(void)
 		g_NetLocalClient->state = CLSTATE_LOBBY;
 		return;
 	}
+
+	// re-read the player config in case it changed
+	netClientReadConfig(g_NetLocalClient, 0);
 
 	g_NetLocalClient->state = CLSTATE_GAME;
 
@@ -449,16 +458,7 @@ s32 netStartClient(const char *addr)
 	}
 
 	g_NetLocalClient->state = CLSTATE_CONNECTING;
-	g_NetLocalClient->settings.bodynum = g_PlayerConfigsArray[0].base.mpbodynum;
-	g_NetLocalClient->settings.headnum = g_PlayerConfigsArray[0].base.mpheadnum;
-	g_NetLocalClient->settings.fovy = g_PlayerExtCfg[0].fovy;
-	g_NetLocalClient->settings.fovzoommult = g_PlayerExtCfg[0].fovzoommult;
-	memcpy(g_NetLocalClient->settings.name, g_PlayerConfigsArray[0].base.name, sizeof(g_NetLocalClient->settings.name));
-	// the \n will be readded in the playerconfig
-	char *newline = strrchr(g_NetLocalClient->settings.name, '\n');
-	if (newline) {
-		*newline = '\0';
-	}
+	netClientReadConfig(g_NetLocalClient, 0);
 
 	g_NetMode = NETMODE_CLIENT;
 
@@ -828,6 +828,12 @@ void netPlayersAllocate(void)
 			cfg->base.mpbodynum = cl->settings.bodynum;
 			cfg->base.mpheadnum = cl->settings.headnum;
 			snprintf(cfg->base.name, sizeof(cfg->base.name), "%s\n", cl->settings.name);
+			// take some of the options from our local player and others from the client
+			cfg->options = g_PlayerConfigsArray[0].options & OPTION_PAINTBALL;
+			cfg->options |= cl->settings.options & ~OPTION_PAINTBALL;
+			// don't enable toggle aim, invert pitch or lookahead for remote players
+			cfg->options &= ~(OPTION_AIMCONTROL | OPTION_LOOKAHEAD | OPTION_ASKEDSAVEPLAYER);
+			cfg->options |= OPTION_FORWARDPITCH;
 		}
 
 		cl->player = g_Vars.players[cl->playernum];
