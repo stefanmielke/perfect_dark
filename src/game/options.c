@@ -111,6 +111,13 @@ u8 optionsGetCutsceneSubtitles(void)
 
 s32 optionsGetHeadRoll(s32 mpchrnum)
 {
+#ifndef PLATFORM_N64
+	if (g_NetMode) {
+		// remove headroll from netplay for now for better shot consistency
+		// TODO: make it an option or something
+		return false;
+	}
+#endif
 	return (g_PlayerConfigsArray[mpchrnum].options & OPTION_HEADROLL) != 0;
 }
 
