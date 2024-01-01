@@ -79,6 +79,9 @@ static inline u32 netbufWritePlayerMove(struct netbuf *buf, const struct netplay
 	netbufWriteF32(buf, in->crosspos[1]);
 	netbufWriteS8(buf, in->weaponnum);
 	netbufWriteCoord(buf, &in->pos);
+	if (in->ucmd & UCMD_AIMMODE) {
+		netbufWriteF32(buf, in->zoomfov);
+	}
 	return buf->error;
 }
 
@@ -96,6 +99,11 @@ static inline u32 netbufReadPlayerMove(struct netbuf *buf, struct netplayermove 
 	in->crosspos[1] = netbufReadF32(buf);
 	in->weaponnum = netbufReadS8(buf);
 	netbufReadCoord(buf, &in->pos);
+	if (in->ucmd & UCMD_AIMMODE) {
+		in->zoomfov = netbufReadF32(buf);
+	} else {
+		in->zoomfov = 0.f;
+	}
 	return buf->error;
 }
 
@@ -151,6 +159,8 @@ u32 netmsgClcAuthWrite(struct netbuf *dst)
 	netbufWriteU8(dst, 1); // TODO: number of local players
 	netbufWriteU8(dst, g_NetLocalClient->settings.bodynum);
 	netbufWriteU8(dst, g_NetLocalClient->settings.headnum);
+	netbufWriteF32(dst, g_NetLocalClient->settings.fovy);
+	netbufWriteF32(dst, g_NetLocalClient->settings.fovzoommult);
 	netbufWriteStr(dst, g_NetLocalClient->settings.name);
 
 	return dst->error;
@@ -168,6 +178,8 @@ u32 netmsgClcAuthRead(struct netbuf *src, struct netclient *srccl)
 	const u8 players = netbufReadU8(src);
 	const u8 bodynum = netbufReadU8(src);
 	const u8 headnum = netbufReadU8(src);
+	const f32 fovy = netbufReadF32(src);
+	const f32 fovzoommult = netbufReadF32(src);
 	char *name = netbufReadStr(src);
 
 	if (src->error) {
@@ -196,6 +208,8 @@ u32 netmsgClcAuthRead(struct netbuf *src, struct netclient *srccl)
 	strncpy(srccl->settings.name, name, sizeof(srccl->settings.name) - 1);
 	srccl->settings.bodynum = bodynum;
 	srccl->settings.headnum = headnum;
+	srccl->settings.fovy = fovy;
+	srccl->settings.fovzoommult = fovzoommult;
 	srccl->state = CLSTATE_LOBBY;
 
 	sysLogPrintf(LOG_NOTE, "NET: CLC_AUTH from %s (%s), responding", netFormatClientAddr(srccl), srccl->settings.name);
@@ -382,6 +396,8 @@ u32 netmsgSvcStageStartWrite(struct netbuf *dst)
 			netbufWriteU8(dst, ncl->settings.team);
 			netbufWriteU8(dst, ncl->settings.bodynum);
 			netbufWriteU8(dst, ncl->settings.headnum);
+			netbufWriteF32(dst, ncl->settings.fovy);
+			netbufWriteF32(dst, ncl->settings.fovzoommult);
 			netbufWriteStr(dst, ncl->settings.name);
 			memset(ncl->inmove, 0, sizeof(ncl->inmove));
 			memset(ncl->outmove, 0, sizeof(ncl->outmove));
@@ -445,6 +461,8 @@ u32 netmsgSvcStageStartRead(struct netbuf *src, struct netclient *srccl)
 			ncl->id = id;
 			ncl->settings.bodynum = netbufReadU8(src);
 			ncl->settings.headnum = netbufReadU8(src);
+			ncl->settings.fovy = netbufReadF32(src);
+			ncl->settings.fovzoommult = netbufReadF32(src);
 			char *name = netbufReadStr(src);
 			if (name) {
 				strncpy(ncl->settings.name, name, sizeof(ncl->settings.name) - 1);
@@ -456,6 +474,8 @@ u32 netmsgSvcStageStartRead(struct netbuf *src, struct netclient *srccl)
 			// skip our own settings except for the team
 			netbufReadU8(src);
 			netbufReadU8(src);
+			netbufReadF32(src);
+			netbufReadF32(src);
 			netbufReadStr(src);
 		}
 		ncl->state = CLSTATE_GAME;

@@ -15,6 +15,7 @@
 #include "game/playermgr.h"
 #include "game/bondgun.h"
 #include "game/game_1531a0.h"
+#include "game/game_0b0fd0.h"
 #include "lib/main.h"
 #include "lib/vi.h"
 #include "config.h"
@@ -191,14 +192,23 @@ static inline void netClientRecordMove(struct netclient *cl, const struct player
 	move->angles[0] = pl->vv_theta;
 	move->angles[1] = pl->vv_verta;
   move->pos = (pl->prop) ? pl->prop->pos : pl->cam_pos;
+
 	move->crosspos[0] = pl->crosspos[0];
 	move->crosspos[1] = pl->crosspos[1];
+
+	if (!pl->isremote) {
+		// normalize crosspos x
+		move->crosspos[0] -= (f32)(SCREEN_WIDTH_LO / 2);
+		move->crosspos[0] = (f32)(SCREEN_WIDTH_LO / 2) + move->crosspos[0] * pl->aspect / SCREEN_ASPECT;
+	}
 
 	move->ucmd = pl->ucmd;
 
 	if (g_NetMode == NETMODE_SERVER && pl->isremote && cl->inmove[0].tick) {
 		// carry some of the client inputs over to the outmove
 		move->ucmd |= (cl->inmove[0].ucmd & (UCMD_FIRE | UCMD_RELOAD | UCMD_AIMMODE | UCMD_EYESSHUT | UCMD_SELECT | UCMD_SELECT_DUAL));
+		move->crosspos[0] = cl->inmove[0].crosspos[0];
+		move->crosspos[1] = cl->inmove[0].crosspos[1];
 	}
 
 	if (pl->crouchpos == CROUCHPOS_DUCK) {
@@ -226,6 +236,13 @@ static inline void netClientRecordMove(struct netclient *cl, const struct player
 
 	if (bgunIsUsingSecondaryFunction()) {
 		move->ucmd |= UCMD_SECONDARY;
+	}
+
+	if (pl->insightaimmode) {
+		move->ucmd |= UCMD_AIMMODE;
+		move->zoomfov = currentPlayerGetGunZoomFov();
+	} else {
+		move->zoomfov = 0.f;
 	}
 
 	setCurrentPlayerNum(oldnum);
@@ -328,6 +345,8 @@ s32 netStartServer(u16 port, s32 maxclients)
 	g_NetLocalClient->state = CLSTATE_LOBBY; // local client doesn't need auth
 	g_NetLocalClient->settings.bodynum = g_PlayerConfigsArray[0].base.mpbodynum;
 	g_NetLocalClient->settings.headnum = g_PlayerConfigsArray[0].base.mpheadnum;
+	g_NetLocalClient->settings.fovy = g_PlayerExtCfg[0].fovy;
+	g_NetLocalClient->settings.fovzoommult = g_PlayerExtCfg[0].fovzoommult;
 	memcpy(g_NetLocalClient->settings.name, g_PlayerConfigsArray[0].base.name, sizeof(g_NetLocalClient->settings.name));
 	// the \n will be readded in the playerconfig
 	char *newline = strrchr(g_NetLocalClient->settings.name, '\n');
@@ -432,6 +451,8 @@ s32 netStartClient(const char *addr)
 	g_NetLocalClient->state = CLSTATE_CONNECTING;
 	g_NetLocalClient->settings.bodynum = g_PlayerConfigsArray[0].base.mpbodynum;
 	g_NetLocalClient->settings.headnum = g_PlayerConfigsArray[0].base.mpheadnum;
+	g_NetLocalClient->settings.fovy = g_PlayerExtCfg[0].fovy;
+	g_NetLocalClient->settings.fovzoommult = g_PlayerExtCfg[0].fovzoommult;
 	memcpy(g_NetLocalClient->settings.name, g_PlayerConfigsArray[0].base.name, sizeof(g_NetLocalClient->settings.name));
 	// the \n will be readded in the playerconfig
 	char *newline = strrchr(g_NetLocalClient->settings.name, '\n');

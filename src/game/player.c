@@ -5862,6 +5862,32 @@ struct sndstate *playerSndStart(s32 arg0, s16 sound, struct sndstate **handle, s
 	return sndStart(arg0, sound, handle, vol, pan, pitch, fxbus, fxmix);
 }
 
+#ifndef PLATFORM_N64
+
+f32 playerGetDefaultFovY(s32 playernum)
+{
+	if (g_NetMode) {
+		const struct player *pl = g_Vars.players[playernum % MAX_PLAYERS];
+		if (pl && pl->client) {
+			return pl->client->settings.fovy;
+		}
+	}
+	return g_PlayerExtCfg[playernum % MAX_LOCAL_PLAYERS].fovy;
+}
+
+f32 playerGetZoomFovMult(s32 playernum)
+{
+	if (g_NetMode) {
+		const struct player *pl = g_Vars.players[playernum % MAX_PLAYERS];
+		if (pl && pl->client) {
+			return pl->client->settings.fovzoommult;
+		}
+	}
+	return g_PlayerExtCfg[playernum % MAX_LOCAL_PLAYERS].fovzoommult;
+}
+
+#endif
+
 #if MAX_PLAYERS > 4
 
 s32 playerGetCount(void)

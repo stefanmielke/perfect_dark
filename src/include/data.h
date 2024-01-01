@@ -556,10 +556,10 @@ extern s32 g_BgunGeMuzzleFlashes;
 extern s32 g_NetMode;
 
 #define PLAYER_EXTCFG() g_PlayerExtCfg[g_Vars.currentplayerstats->mpindex & 3]
-#define PLAYER_DEFAULT_FOV (PLAYER_EXTCFG().fovy)
+#define PLAYER_DEFAULT_FOV playerGetDefaultFovY(g_Vars.currentplayerstats->mpindex)
+#define ADJUST_ZOOM_FOV(x) ((x) * playerGetZoomFovMult(g_Vars.currentplayerstats->mpindex))
 
 #define TEX_FILTER_2D g_TexFilter2D
-#define ADJUST_ZOOM_FOV(x) ((x) * PLAYER_EXTCFG().fovzoommult)
 
 s32 playerGetCount(void);
 

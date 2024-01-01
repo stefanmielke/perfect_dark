@@ -62,9 +62,10 @@ struct netplayermove {
 	u32 ucmd; // player commands (UCMD_)
 	f32 leanofs; // analog lean value (-1 .. 1; equal to player->swaytarget / 75.f)
 	f32 crouchofs; // analog crouch value (-90 for SQUAT, 0 for STAND; player->crouchofs)
+	f32 zoomfov; // manual zoom fov for the current gun; synced only if UCMD_AIMING is set
 	f32 movespeed[2]; // move inputs, [0] is forward, [1] is sideways; used mostly for animation
 	f32 angles[2]; // view angles, [0] is theta, [1] is verta
-	f32 crosspos[2]; // crosshair position in aiming mode
+	f32 crosspos[2]; // crosshair position in aiming mode; normalized to default aspect ratio
 	s8 weaponnum; // switch to this weapon if UCMD_SELECT is set
 	struct coord pos; // player position at g_NetTick == tick
 };
@@ -80,6 +81,8 @@ struct netclient {
 		u8 headnum;
 		u8 bodynum;
 		u8 team;
+		f32 fovy;
+		f32 fovzoommult;
 	} settings;
 
 	struct mpplayerconfig *config;

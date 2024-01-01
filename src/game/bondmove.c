@@ -148,15 +148,42 @@ static inline void bmoveProcessRemoteInput(const bool allowc1buttons)
 	pl->crosspos[0] = inmove->crosspos[0];
 	pl->crosspos[1] = inmove->crosspos[1];
 
+	// denormalize crosspos x
+	pl->crosspos[0] -= (f32)(SCREEN_WIDTH_LO / 2);
+	pl->crosspos[0] = (f32)(SCREEN_WIDTH_LO / 2) + pl->crosspos[0] / pl->aspect * SCREEN_ASPECT;
+
+	pl->crosspos2[0] = pl->crosspos[0];
+	pl->crosspos2[1] = pl->crosspos[1];
+
+	pl->insightaimmode = (inmove->ucmd & UCMD_AIMMODE) != 0;
+	if (pl->insightaimmode) {
+		pl->gunzoomfovs[0] = pl->gunzoomfovs[1] = pl->gunzoomfovs[2] = inmove->zoomfov;
+	}
+
+	f32 zoomfov = 0.f;
+	if (pl->insightaimmode) {
+		zoomfov = currentPlayerGetGunZoomFov();
+	}
+	if (bgunGetWeaponNum(HAND_RIGHT) == WEAPON_AR34 && pl->hands[HAND_RIGHT].gset.weaponfunc == FUNC_SECONDARY) {
+		zoomfov = currentPlayerGetGunZoomFov();
+	}
+	if (zoomfov <= 0.f) {
+		zoomfov = pl->client->settings.fovy;
+	}
+	playerTweenFovY(zoomfov);
+	playerUpdateZoom();
+
+	for (s32 h = 0; h < 2; ++h) {
+		pl->hands[h].crosspos[0] = pl->crosspos[0];
+		pl->hands[h].crosspos[1] = pl->crosspos[1];
+	}
+
 	if (inmove->ucmd & UCMD_SELECT) {
 		pl->gunctrl.dualwielding = (inmove->ucmd & UCMD_SELECT_DUAL) != 0;
 		if (inmove->weaponnum >= 0) {
 			bgunEquipWeapon(inmove->weaponnum);
 		}
 	}
-
-	const bool fireguns = (inmove->ucmd & UCMD_FIRE) &&
-		!g_Vars.currentplayer->waitforzrelease && allowc1buttons;
 
 	if ((inmove->ucmd & UCMD_SECONDARY) && !bgunIsUsingSecondaryFunction()) {
 		bgunConsiderToggleGunFunction(0, false, false, true);
@@ -166,6 +193,8 @@ static inline void bmoveProcessRemoteInput(const bool allowc1buttons)
 			bgunConsiderToggleGunFunction(0, false, false, true);
 		}
 	}
+
+	const bool fireguns = (inmove->ucmd & UCMD_FIRE) && !pl->waitforzrelease && allowc1buttons;
 
 	bgunTickGameplay(fireguns);
 
@@ -194,7 +223,7 @@ static inline void bmoveProcessRemoteInput(const bool allowc1buttons)
 		}
 	}
 
-	bgunSetSightVisible(GUNSIGHTREASON_NOTAIMING, (inmove->ucmd & UCMD_AIMMODE) != 0);
+	bgunSetSightVisible(GUNSIGHTREASON_NOTAIMING, pl->insightaimmode);
 
 	const bool forcepos = !inmoveprev->tick || !moveticks || (inmove->ucmd & UCMD_FL_FORCEANGLE);
 
