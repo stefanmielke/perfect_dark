@@ -24,11 +24,12 @@
 #define SVC_CHR_DAMAGE    0x42 // chr was damaged
 #define SVC_CHR_DISARM    0x43 // chr's weapons were dropped
 
-#define CLC_BAD  0x00 // trash
-#define CLC_NOP  0x01 // does nothing
-#define CLC_AUTH 0x02 // auth request, sent immediately after connecting
-#define CLC_CHAT 0x03 // chat message
-#define CLC_MOVE 0x04 // player input
+#define CLC_BAD      0x00 // trash
+#define CLC_NOP      0x01 // does nothing
+#define CLC_AUTH     0x02 // auth request, sent immediately after connecting
+#define CLC_CHAT     0x03 // chat message
+#define CLC_MOVE     0x04 // player input
+#define CLC_SETTINGS 0x05 // player settings changed
 
 u32 netmsgClcAuthWrite(struct netbuf *dst);
 u32 netmsgClcAuthRead(struct netbuf *src, struct netclient *srccl);
@@ -36,6 +37,8 @@ u32 netmsgClcChatWrite(struct netbuf *dst, const char *str);
 u32 netmsgClcChatRead(struct netbuf *src, struct netclient *srccl);
 u32 netmsgClcMoveWrite(struct netbuf *dst);
 u32 netmsgClcMoveRead(struct netbuf *src, struct netclient *srccl);
+u32 netmsgClcSettingsWrite(struct netbuf *dst);
+u32 netmsgClcSettingsRead(struct netbuf *src, struct netclient *srccl);
 
 u32 netmsgSvcAuthWrite(struct netbuf *dst, struct netclient *authcl);
 u32 netmsgSvcAuthRead(struct netbuf *src, struct netclient *srccl);

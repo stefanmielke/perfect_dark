@@ -7,6 +7,7 @@ extern "C" {
 
 #include <PR/ultratypes.h>
 
+#define LOGFLAG_NOCON (1 << 6)
 #define LOGFLAG_SHOWMSG (1 << 7)
 
 enum loglevel {

@@ -138,13 +138,15 @@ s32 netStartClient(const char *addr);
 
 u32 netSend(struct netclient *dstcl, struct netbuf *buf, const s32 reliable, const s32 chan);
 
-void netChat(const char *text);
+void netChat(struct netclient *dst, const char *text);
+void netChatPrintf(struct netclient *dst, const char *fmt, ...);
 
 void netServerStageStart(void);
 void netServerStageEnd(void);
 void netServerKick(struct netclient *cl, const u32 reason);
 
 void netClientSyncRng(void);
+void netClientSettingsChanged(void);
 
 void netPlayersAllocate(void);
 void netSyncIdsAllocate(void);

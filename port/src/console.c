@@ -219,7 +219,7 @@ void conTick(void)
 		} else if (key == VK_RETURN) {
 			if (conInput[0] && conInputCol) {
 				if (g_NetMode) {
-					netChat(conInput);
+					netChat(NULL, conInput);
 				}
 			}
 			conInput[0] = '\0';

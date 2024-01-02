@@ -128,7 +128,9 @@ void sysLogPrintf(s32 level, const char *fmt, ...)
 	fprintf(fout, "%s%s\n", prefix[level & 0x0f], logmsg);
 	fflush(fout);
 
-	conPrintLn((level & LOGFLAG_SHOWMSG) != 0, logmsg);
+	if ((level & LOGFLAG_NOCON) == 0) {
+		conPrintLn((level & LOGFLAG_SHOWMSG) != 0, logmsg);
+	}
 }
 
 void sysFatalError(const char *fmt, ...)

@@ -154,15 +154,10 @@ u32 netmsgClcAuthWrite(struct netbuf *dst)
 	}
 
 	netbufWriteU8(dst, CLC_AUTH);
+	netbufWriteStr(dst, g_NetLocalClient->settings.name);
 	netbufWriteStr(dst, g_RomName); // TODO: use a CRC or something
 	netbufWriteStr(dst, modDir);
 	netbufWriteU8(dst, 1); // TODO: number of local players
-	netbufWriteU16(dst, g_NetLocalClient->settings.options);
-	netbufWriteU8(dst, g_NetLocalClient->settings.bodynum);
-	netbufWriteU8(dst, g_NetLocalClient->settings.headnum);
-	netbufWriteF32(dst, g_NetLocalClient->settings.fovy);
-	netbufWriteF32(dst, g_NetLocalClient->settings.fovzoommult);
-	netbufWriteStr(dst, g_NetLocalClient->settings.name);
 
 	return dst->error;
 }
@@ -170,28 +165,23 @@ u32 netmsgClcAuthWrite(struct netbuf *dst)
 u32 netmsgClcAuthRead(struct netbuf *src, struct netclient *srccl)
 {
 	if (srccl->state != CLSTATE_AUTH) {
-		sysLogPrintf(LOG_WARNING, "NET: CLC_AUTH from %s, who is not in CLSTATE_AUTH", netFormatClientAddr(srccl));
+		sysLogPrintf(LOG_WARNING, "NET: CLC_AUTH from client %u, who is not in CLSTATE_AUTH", srccl->id);
 		return 1;
 	}
 
+	char *name = netbufReadStr(src);
 	const char *romName = netbufReadStr(src);
 	const char *modDir = netbufReadStr(src);
 	const u8 players = netbufReadU8(src);
-	const u16 options = netbufReadU16(src);
-	const u8 bodynum = netbufReadU8(src);
-	const u8 headnum = netbufReadU8(src);
-	const f32 fovy = netbufReadF32(src);
-	const f32 fovzoommult = netbufReadF32(src);
-	char *name = netbufReadStr(src);
 
 	if (src->error) {
-		sysLogPrintf(LOG_WARNING, "NET: malformed CLC_AUTH from %s", netFormatClientAddr(srccl));
+		sysLogPrintf(LOG_WARNING, "NET: malformed CLC_AUTH from client %u", srccl->id);
 		netServerKick(srccl, DISCONNECT_KICKED);
 		return 1;
 	}
 
 	if (strcasecmp(romName, g_RomName) != 0) {
-		sysLogPrintf(LOG_WARNING, "NET: CLC_AUTH: %s has the wrong ROM, disconnecting", netFormatClientAddr(srccl));
+		sysLogPrintf(LOG_WARNING, "NET: CLC_AUTH: client %u has the wrong ROM, disconnecting", srccl->id);
 		netServerKick(srccl, DISCONNECT_FILES);
 		return src->error;
 	}
@@ -202,26 +192,25 @@ u32 netmsgClcAuthRead(struct netbuf *src, struct netclient *srccl)
 
 	const char *myModDir = fsGetModDir();
 	if ((!myModDir != !modDir) || (myModDir && modDir && strcasecmp(modDir, myModDir) != 0)) {
-		sysLogPrintf(LOG_WARNING, "NET: CLC_AUTH: %s has the wrong mod, disconnecting", netFormatClientAddr(srccl));
+		sysLogPrintf(LOG_WARNING, "NET: CLC_AUTH: client %u has the wrong mod, disconnecting", srccl->id);
 		netServerKick(srccl, DISCONNECT_FILES);
 		return src->error;
 	}
 
+	// for now use settings from our own client, remote is supposed to send CLC_SETTINGS after CLC_AUTH
+	srccl->settings = g_NetLocalClient->settings;
 	strncpy(srccl->settings.name, name, sizeof(srccl->settings.name) - 1);
-	srccl->settings.options = options;
-	srccl->settings.bodynum = bodynum;
-	srccl->settings.headnum = headnum;
-	srccl->settings.fovy = fovy;
-	srccl->settings.fovzoommult = fovzoommult;
 	srccl->state = CLSTATE_LOBBY;
 
-	sysLogPrintf(LOG_NOTE, "NET: CLC_AUTH from %s (%s), responding", netFormatClientAddr(srccl), srccl->settings.name);
+	sysLogPrintf(LOG_NOTE, "NET: CLC_AUTH from client %u (%s), responding", srccl->id, srccl->settings.name);
 
 	netbufStartWrite(&srccl->out);
 	netmsgSvcAuthWrite(&srccl->out, srccl);
 	netSend(srccl, NULL, true, NETCHAN_CONTROL);
 
-	sysLogPrintf(LOG_CHAT, "NET: %s (%u) joined", srccl->settings.name, srccl->id);
+	sysLogPrintf(LOG_NOTE, "NET: %s (%u) joined", srccl->settings.name, srccl->id);
+
+	netChatPrintf(NULL, "%s joined", name);
 
 	return 0;
 }
@@ -291,6 +280,47 @@ u32 netmsgClcMoveRead(struct netbuf *src, struct netclient *srccl)
 		srccl->inmove[0] = newmove;
 		srccl->lerpticks = 0;
 	}
+
+	return src->error;
+}
+
+u32 netmsgClcSettingsWrite(struct netbuf *dst)
+{
+	netbufWriteU8(dst, CLC_SETTINGS);
+	netbufWriteU16(dst, g_NetLocalClient->settings.options);
+	netbufWriteU8(dst, g_NetLocalClient->settings.bodynum);
+	netbufWriteU8(dst, g_NetLocalClient->settings.headnum);
+	netbufWriteF32(dst, g_NetLocalClient->settings.fovy);
+	netbufWriteF32(dst, g_NetLocalClient->settings.fovzoommult);
+	netbufWriteStr(dst, g_NetLocalClient->settings.name);
+	return dst->error;
+}
+
+u32 netmsgClcSettingsRead(struct netbuf *src, struct netclient *srccl)
+{
+	const u16 options = netbufReadU16(src);
+	const u8 bodynum = netbufReadU8(src);
+	const u8 headnum = netbufReadU8(src);
+	const f32 fovy = netbufReadF32(src);
+	const f32 fovzoommult = netbufReadF32(src);
+	char *name = netbufReadStr(src);
+
+	if (src->error) {
+		sysLogPrintf(LOG_WARNING, "NET: malformed CLC_SETTINGS from client %u", srccl->id);
+		netServerKick(srccl, DISCONNECT_KICKED);
+		return 1;
+	}
+
+	if (srccl->settings.name[0] && strncmp(srccl->settings.name, name, MAX_PLAYERNAME) != 0) {
+		netChatPrintf(NULL, "%s is now known as %s", srccl->settings.name, name);
+	}
+
+	strncpy(srccl->settings.name, name, sizeof(srccl->settings.name) - 1);
+	srccl->settings.options = options;
+	srccl->settings.bodynum = bodynum;
+	srccl->settings.headnum = headnum;
+	srccl->settings.fovy = fovy;
+	srccl->settings.fovzoommult = fovzoommult;
 
 	return src->error;
 }

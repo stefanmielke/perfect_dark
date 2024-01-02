@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <ctype.h>
 #include <string.h>
 #include "platform.h"
@@ -513,18 +514,18 @@ static void netServerEvConnect(ENetPeer *peer, const u32 data)
 {
 	const char *addrstr = netFormatPeerAddr(peer);
 
-	sysLogPrintf(LOG_NOTE, "NET: connection attempt from %s", addrstr);
+	sysLogPrintf(LOG_NOTE | LOGFLAG_NOCON, "NET: connection attempt from %s", addrstr);
 
 	++g_NetNumClients;
 
 	if (data != NET_PROTOCOL_VER) {
-		sysLogPrintf(LOG_NOTE, "NET: %s rejected: protocol mismatch", addrstr);
+		sysLogPrintf(LOG_NOTE | LOGFLAG_NOCON, "NET: %s rejected: protocol mismatch", addrstr);
 		enet_peer_disconnect(peer, DISCONNECT_VERSION);
 		return;
 	}
 
 	if (g_NetLocalClient && g_NetLocalClient->state > CLSTATE_LOBBY) {
-		sysLogPrintf(LOG_NOTE, "NET: %s rejected: late joins not allowed", addrstr);
+		sysLogPrintf(LOG_NOTE | LOGFLAG_NOCON, "NET: %s rejected: late joins not allowed", addrstr);
 		enet_peer_disconnect(peer, DISCONNECT_LATE);
 		return;
 	}
@@ -540,7 +541,7 @@ static void netServerEvConnect(ENetPeer *peer, const u32 data)
 	}
 
 	if (!cl) {
-		sysLogPrintf(LOG_NOTE, "NET: %s rejected: server is full", addrstr);
+		sysLogPrintf(LOG_NOTE | LOGFLAG_NOCON, "NET: %s rejected: server is full", addrstr);
 		enet_peer_disconnect(peer, DISCONNECT_FULL);
 		return;
 	}
@@ -553,14 +554,15 @@ static void netServerEvConnect(ENetPeer *peer, const u32 data)
 
 static void netServerEvDisconnect(struct netclient *cl)
 {
-	sysLogPrintf(LOG_NOTE, "NET: disconnect event from %s", netFormatClientAddr(cl));
+	sysLogPrintf(LOG_NOTE | LOGFLAG_NOCON, "NET: disconnect event from %s", netFormatClientAddr(cl));
 
 	if (cl->peer) {
 		enet_peer_reset(cl->peer);
 	}
 
-	if (cl->settings.name) {
-		sysLogPrintf(LOG_CHAT, "NET: %s (%u) disconnected", cl->settings.name, cl->id);
+	if (cl->settings.name[0]) {
+		sysLogPrintf(LOG_NOTE, "NET: client %u (%s) disconnected", cl->id, cl->settings.name);
+		netChatPrintf(NULL, "%s disconnected", cl->settings.name);
 	} else {
 		sysLogPrintf(LOG_CHAT, "NET: client %u disconnected", cl->id);
 	}
@@ -582,6 +584,7 @@ static void netServerEvReceive(struct netclient *cl)
 			case CLC_AUTH: rc = netmsgClcAuthRead(&cl->in, cl); break;
 			case CLC_CHAT: rc = netmsgClcChatRead(&cl->in, cl); break;
 			case CLC_MOVE: rc = netmsgClcMoveRead(&cl->in, cl); break;
+			case CLC_SETTINGS: rc = netmsgClcSettingsRead(&cl->in, cl); break;
 			default:
 				rc = 1;
 				break;
@@ -589,7 +592,7 @@ static void netServerEvReceive(struct netclient *cl)
 	}
 
 	if (rc) {
-		sysLogPrintf(LOG_WARNING, "NET: malformed or unknown message 0x%02x from client %s", msgid, netFormatClientAddr(cl));
+		sysLogPrintf(LOG_WARNING , "NET: malformed or unknown message 0x%02x from client %u", msgid, cl->id);
 	}
 }
 
@@ -602,6 +605,7 @@ static void netClientEvConnect(const u32 data)
 	// send auth request
 	netbufStartWrite(&g_NetMsgRel);
 	netmsgClcAuthWrite(&g_NetMsgRel);
+	netmsgClcSettingsWrite(&g_NetMsgRel);
 	netSend(g_NetLocalClient, &g_NetMsgRel, true, NETCHAN_CONTROL);
 }
 
@@ -653,6 +657,19 @@ void netClientSyncRng(void)
 		g_RngSeed = g_NetRngSeeds[0];
 		g_Rng2Seed = g_NetRngSeeds[1];
 	}
+}
+
+void netClientSettingsChanged(void)
+{
+	if (g_NetMode != NETMODE_CLIENT || !g_NetLocalClient) {
+		return;
+	}
+
+	netClientReadConfig(g_NetLocalClient, 0);
+
+	netbufStartWrite(&g_NetMsgRel);
+	netmsgClcSettingsWrite(&g_NetMsgRel);
+	netSend(NULL, &g_NetMsgRel, true, NETCHAN_CONTROL);
 }
 
 void netStartFrame(void)
@@ -886,25 +903,38 @@ void netSyncIdsAllocate(void)
 	sysLogPrintf(LOG_NOTE, "NET: last initial syncid: %u", g_NetNextSyncId);
 }
 
-void netChat(const char *text)
+void netChatPrintf(struct netclient *dst, const char *fmt, ...)
 {
-	char tmp[1024];
+	char tmp[512];
+	u8 bufdata[600];
+	struct netbuf buf = { NULL };
 
 	if (!g_NetMode || !g_NetLocalClient || g_NetLocalClient->state < CLSTATE_LOBBY) {
 		return;
 	}
 
-	snprintf(tmp, sizeof(tmp), "%s: %s", g_NetLocalClient->settings.name, text);
-	char *nl = strchr(tmp, '\n');
-	if (nl) {
-		*nl = ' ';
-	}
+	va_list args;
+	va_start(args, fmt);
+	vsnprintf(tmp, sizeof(tmp) - 1, fmt, args);
+	va_end(args);
+
+	buf.data = bufdata;
+	buf.size = sizeof(bufdata);
 
 	if (g_NetMode == NETMODE_SERVER) {
 		sysLogPrintf(LOG_CHAT, "%s", tmp);
-		netmsgSvcChatWrite(&g_NetMsgRel, tmp);
+		netmsgSvcChatWrite(&buf, tmp);
 	} else {
-		netmsgClcChatWrite(&g_NetMsgRel, tmp);
+		netmsgClcChatWrite(&buf, tmp);
+	}
+
+	netSend(dst, &buf, true, NETCHAN_CONTROL);
+}
+
+void netChat(struct netclient *dst, const char *text)
+{
+	if (g_NetMode && g_NetLocalClient) {
+		netChatPrintf(dst, "%s: %s", g_NetLocalClient->settings.name, text);
 	}
 }
 
