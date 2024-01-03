@@ -71,7 +71,7 @@ u32 var8009dfc4;
 struct briefing g_Briefing;
 u32 var8009dfe4;
 struct missionconfig g_MissionConfig;
-struct menu g_Menus[MAX_LOCAL_PLAYERS];
+struct menu g_Menus[MAX_PLAYERS];
 struct menudata g_MenuData;
 s32 g_MenuScissorX1;
 s32 g_MenuScissorX2;

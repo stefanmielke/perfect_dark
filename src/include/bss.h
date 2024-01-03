@@ -175,7 +175,7 @@ extern u8 *g_BlurBuffer;
 extern s32 var8009dfc0;
 extern struct briefing g_Briefing;
 extern struct missionconfig g_MissionConfig;
-extern struct menu g_Menus[MAX_LOCAL_PLAYERS];
+extern struct menu g_Menus[MAX_PLAYERS];
 extern struct menudata g_MenuData;
 extern struct activemenu g_AmMenus[MAX_LOCAL_PLAYERS];
 extern s32 g_AmIndex;
