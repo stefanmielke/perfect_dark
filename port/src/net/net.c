@@ -35,7 +35,7 @@ u32 g_NetClientUpdateRate = 1;
 u32 g_NetClientInRate = 128 * 1024;
 u32 g_NetClientOutRate = 128 * 1024;
 
-u32 g_NetInterpTicks = 6;
+u32 g_NetInterpTicks = 3;
 char g_NetLastJoinAddr[NET_MAX_ADDR + 1] = "127.0.0.1:27100";
 
 u32 g_NetTick = 0;
