@@ -355,6 +355,7 @@ s32 netStartServer(u16 port, s32 maxclients)
 	}
 
 	netClientResetAll();
+	g_NetMaxClients = maxclients;
 
 	// the server's local client is client 0
 	g_NetLocalClient = &g_NetClients[0];
