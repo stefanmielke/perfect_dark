@@ -84,27 +84,20 @@ static s32 netParseAddr(ENetAddress *out, const char *str)
 
 	char *host = tmp;
 	char *port = NULL;
+	char *colon = strrchr(tmp, ':');
 
-	if (tmp[0] == '[') {
-		// ipv6 with port: [ADDR]:PORT
-		host = tmp + 1; // skip [
-		port = strrchr(host, ']'); // find ]
-		if (port) {
-			if (port[1] != ':' || !isdigit(port[2])) {
-				return false;
-			}
-			*port = '\0'; // terminate ip
-			port += 2; // skip ]:
-		}
-	} else {
-		// ipv4 or hostname
-		port = strrchr(host, ':');
-		if (port) {
-			if (!isdigit(port[1])) {
-				return false;
-			}
-			*port = '\0'; // terminate address
-			++port; // skip :
+	// if there is a : in the address string, there could be a port value
+	// otherwise it's an ip or hostname with default port
+	if (colon > tmp) {
+		if (tmp[0] == '[' && colon[-1] == ']' && isdigit(colon[1])) {
+			// ipv6 with port: [ADDR]:PORT
+			colon[-1] = '\0'; // terminate ip
+			host = tmp + 1; // skip [
+			port = colon + 1; // skip :
+		} else if (isdigit(colon[1]) && strchr(host, ':') == colon) {
+			// ipv4 or hostname with port
+			colon[0] = '\0'; // terminate ip
+			port = colon + 1; // skip :
 		}
 	}
 
