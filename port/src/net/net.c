@@ -17,6 +17,10 @@
 #include "game/bondgun.h"
 #include "game/game_1531a0.h"
 #include "game/game_0b0fd0.h"
+#include "game/title.h"
+#include "game/menu.h"
+#include "game/pdmode.h"
+#include "game/mplayer/mplayer.h"
 #include "lib/main.h"
 #include "lib/vi.h"
 #include "config.h"
@@ -504,8 +508,24 @@ s32 netDisconnect(void)
 	sysLogPrintf(LOG_CHAT, "NET: disconnected");
 
 	if (wasingame) {
+		// skip the "want to save" dialog for all players
+		for (s32 i = 0; i < MAX_PLAYERS; ++i) {
+			if (g_Vars.players[i]) {
+				g_PlayerConfigsArray[i].options |= OPTION_ASKEDSAVEPLAYER;
+			}
+		}
+		// end the stage immediately
 		mainEndStage();
+		// try to drop back to main menu with 1 player
+		mpSetPaused(MPPAUSEMODE_UNPAUSED);
 		g_MpSetup.chrslots = 1;
+		g_Vars.mplayerisrunning = false;
+		g_Vars.normmplayerisrunning = false;
+		g_Vars.lvmpbotlevel = 0;
+		titleSetNextStage(STAGE_CITRAINING);
+		setNumPlayers(1);
+		titleSetNextMode(TITLEMODE_SKIP);
+		mainChangeToStage(STAGE_CITRAINING);
 	}
 
 	return 0;
@@ -850,8 +870,8 @@ void netPlayersAllocate(void)
 			cfg->options = g_PlayerConfigsArray[0].options & OPTION_PAINTBALL;
 			cfg->options |= cl->settings.options & ~OPTION_PAINTBALL;
 			// don't enable toggle aim, invert pitch or lookahead for remote players
-			cfg->options &= ~(OPTION_AIMCONTROL | OPTION_LOOKAHEAD | OPTION_ASKEDSAVEPLAYER);
-			cfg->options |= OPTION_FORWARDPITCH;
+			cfg->options &= ~(OPTION_AIMCONTROL | OPTION_LOOKAHEAD);
+			cfg->options |= OPTION_FORWARDPITCH | OPTION_ASKEDSAVEPLAYER;
 		}
 
 		cl->config = &g_PlayerConfigsArray[cl->playernum];

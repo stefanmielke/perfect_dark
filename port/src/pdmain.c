@@ -585,7 +585,7 @@ void mainEndStage(void)
 			s32 prevplayernum = g_Vars.currentplayernum;
 			s32 i;
 
-			for (i = 0; i < PLAYERCOUNT(); i++) {
+			for (i = 0; i < LOCALPLAYERCOUNT(); i++) {
 				setCurrentPlayerNum(i);
 				endscreenPushCoop();
 			}
@@ -596,7 +596,7 @@ void mainEndStage(void)
 			s32 prevplayernum = g_Vars.currentplayernum;
 			s32 i;
 
-			for (i = 0; i < PLAYERCOUNT(); i++) {
+			for (i = 0; i < LOCALPLAYERCOUNT(); i++) {
 				setCurrentPlayerNum(i);
 				endscreenPushAnti();
 			}

@@ -349,7 +349,7 @@ void lvReset(s32 stagenum)
 		}
 
 		if (g_Vars.mplayerisrunning == false) {
-			g_Vars.playerstats[0].mpindex = 4;
+			g_Vars.playerstats[0].mpindex = MAX_PLAYERS;
 			g_PlayerConfigsArray[MAX_PLAYERS].contpad1 = 0;
 			g_PlayerConfigsArray[MAX_PLAYERS].contpad2 = 1;
 		}
@@ -1700,7 +1700,7 @@ Gfx *lvRender(Gfx *gdl)
 			artifactsTick();
 
 #ifndef PLATFORM_N64
-			if ((g_NetMode && i) || i > MAX_LOCAL_PLAYERS) {
+			if ((g_NetMode && i) || i >= MAX_LOCAL_PLAYERS) {
 				gdl = savedgdl;
 			}
 #endif
