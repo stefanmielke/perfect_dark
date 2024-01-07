@@ -854,12 +854,14 @@ void netPlayersAllocate(void)
 			cfg->options |= OPTION_FORWARDPITCH;
 		}
 
-		cl->player = g_Vars.players[cl->playernum];
 		cl->config = &g_PlayerConfigsArray[cl->playernum];
 		cl->config->client = cl;
 		cl->config->handicap = 0x80;
-		cl->player->client = cl;
-		cl->player->isremote = (cl != g_NetLocalClient);
+		cl->player = g_Vars.players[cl->playernum];
+		if (cl->player) {
+			cl->player->client = cl;
+			cl->player->isremote = (cl != g_NetLocalClient);
+		}
 	}
 }
 

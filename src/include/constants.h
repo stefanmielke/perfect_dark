@@ -4728,7 +4728,7 @@ enum weaponnum {
 #define NETMODE_SERVER 1
 #define NETMODE_CLIENT 2
 
-#define LOCALPLAYERCOUNT() (g_NetMode ? 1 : PLAYERCOUNT())
+#define LOCALPLAYERCOUNT() playerGetLocalCount()
 
 #endif
 

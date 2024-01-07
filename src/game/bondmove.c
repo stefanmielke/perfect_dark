@@ -112,6 +112,10 @@ static void bgunProcessInputAltButton(struct movedata *data, s8 contpad, s32 i)
 static inline void bmoveProcessRemoteInput(const bool allowc1buttons)
 {
 	struct player *pl = g_Vars.currentplayer;
+	if (!pl->client) {
+		return;
+	}
+
 	struct netplayermove *inmove = &pl->client->inmove[0];
 	struct netplayermove *inmoveprev = &pl->client->inmove[1];
 	s32 moveticks = inmove->tick - inmoveprev->tick;
@@ -899,14 +903,17 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 	const f32 mlookscale = g_Vars.lvupdate240 ? (4.f / (f32)g_Vars.lvupdate240) : 4.f;
 	const bool allowmlook = (g_Vars.currentplayernum == 0) && (allowc1x || allowc1y);
 	bool allowmcross = false;
+#endif
 
-	if (g_Vars.currentplayer->isremote) {
+	controlmode = optionsGetControlMode(g_Vars.currentplayerstats->mpindex);
+
+#ifndef PLATFORM_N64
+	if (g_Vars.currentplayer->isremote || controlmode == CONTROLMODE_NA) {
 		bmoveProcessRemoteInput(allowc1buttons);
 		return;
 	}
 #endif
 
-	controlmode = optionsGetControlMode(g_Vars.currentplayerstats->mpindex);
 	weaponnum = bgunGetWeaponNum(HAND_RIGHT);
 	canmanualzoom = weaponHasAimFlag(weaponnum, INVAIMFLAG_MANUALZOOM);
 	contpad1 = optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex);
@@ -1421,6 +1428,9 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 						aimoffhist[i] = !aimonhist[i];
 					}
 
+#ifdef AVOID_UB
+					if (numsamples)
+#endif
 					g_Vars.currentplayer->insightaimmode = aimonhist[numsamples - 1];
 				}
 

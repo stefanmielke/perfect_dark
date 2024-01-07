@@ -562,6 +562,7 @@ extern s32 g_NetMode;
 #define TEX_FILTER_2D g_TexFilter2D
 
 s32 playerGetCount(void);
+s32 playerGetLocalCount(void);
 
 #else // PLATFORM_N64
 

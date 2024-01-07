@@ -184,7 +184,10 @@ u32 var80070748 = 0;
 u32 var8007074c = 0;
 
 bool g_PlayersWithControl[] = {
+	true, true, true, true,
+#if MAX_PLAYERS > 4
 	true, true, true, true
+#endif
 };
 
 bool g_PlayerInvincible = false;
@@ -3507,6 +3510,11 @@ void playerTick(bool arg0)
 				bool pause = false;
 				f32 newspeed;
 
+#ifndef PLATFORM_N64
+				if (mode == CONTROLMODE_NA) {
+					// TODO
+				} else
+#endif
 				if (mode == CONTROLMODE_23
 						|| mode == CONTROLMODE_24
 						|| mode == CONTROLMODE_22
@@ -5886,10 +5894,6 @@ f32 playerGetZoomFovMult(s32 playernum)
 	return g_PlayerExtCfg[playernum % MAX_LOCAL_PLAYERS].fovzoommult;
 }
 
-#endif
-
-#if MAX_PLAYERS > 4
-
 s32 playerGetCount(void)
 {
 	s32 count = 0;
@@ -5897,6 +5901,18 @@ s32 playerGetCount(void)
 		count += (g_Vars.players[i] != NULL);
 	}
 	return count;
+}
+
+s32 playerGetLocalCount(void)
+{
+	if (g_NetMode) {
+		return 1;
+	}
+	const s32 playercount = playerGetCount();
+	if (playercount > MAX_LOCAL_PLAYERS) {
+		return MAX_LOCAL_PLAYERS;
+	}
+	return playercount;
 }
 
 #endif

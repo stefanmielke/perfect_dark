@@ -110,6 +110,7 @@ struct sndstate *playerSndStart(s32 arg0, s16 sound, struct sndstate **handle, s
 
 #if MAX_PLAYERS > 4
 s32 playerGetCount(void);
+s32 playerGetLocalCount(void);
 #endif
 
 #ifndef PLATFORM_N64
