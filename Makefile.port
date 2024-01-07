@@ -305,6 +305,9 @@ $(G_DIR)/tiles/%.h: $(A_DIR)/tiles/%.json
 
 $(BIN): $(O_FILES)
 	$(LD) $(COMMON_CFLAGS) $(OPT_LVL) -o $(BIN) $^ $(LDFLAGS)
+ifneq ($(CV2PDB),)
+	$(CV2PDB) $(BIN)
+endif
 
 $(B_DIR)/%.o: %.c
 	@mkdir -p $(dir $@)
