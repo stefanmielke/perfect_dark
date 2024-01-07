@@ -41,6 +41,10 @@ s32 g_TickRateDiv = 1;
 
 s32 g_SkipIntro = false;
 
+s32 g_FileAutoSelect = -1;
+
+extern s32 g_StageNum;
+
 s32 bootGetMemSize(void)
 {
 	return (s32)g_OsMemSize;
@@ -143,6 +147,11 @@ int main(int argc, const char **argv)
 
 	if (g_StageNum != STAGE_TITLE) {
 		sysLogPrintf(LOG_NOTE, "boot stage set to 0x%02x", g_StageNum);
+	}
+
+	g_FileAutoSelect = sysArgGetInt("--profile", -1);
+	if (g_FileAutoSelect >= 0) {
+		sysLogPrintf(LOG_NOTE, "player profile set to %d", g_FileAutoSelect);
 	}
 
 	mainProc();
