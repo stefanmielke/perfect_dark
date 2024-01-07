@@ -137,6 +137,8 @@ int main(int argc, const char **argv)
 
 	g_StageNum = sysArgGetInt("--boot-stage", STAGE_TITLE);
 
+	g_FileAutoSelect = sysArgGetInt("--profile", -1);
+
 	if (g_StageNum == STAGE_TITLE && (sysArgCheck("--skip-intro") || g_SkipIntro)) {
 		// shorthand for --boot-stage 0x26
 		g_StageNum = STAGE_CITRAINING;
@@ -145,11 +147,19 @@ int main(int argc, const char **argv)
 		g_StageNum = STAGE_TITLE;
 	}
 
+	if (g_NetJoinLatch || g_NetHostLatch) {
+		if (g_FileAutoSelect < 0) {
+			// default to profile 0 if going into a net game
+			g_FileAutoSelect = 0;
+		}
+		// skip the intro if going into a net game
+		g_StageNum = STAGE_CITRAINING;
+	}
+
 	if (g_StageNum != STAGE_TITLE) {
 		sysLogPrintf(LOG_NOTE, "boot stage set to 0x%02x", g_StageNum);
 	}
 
-	g_FileAutoSelect = sysArgGetInt("--profile", -1);
 	if (g_FileAutoSelect >= 0) {
 		sysLogPrintf(LOG_NOTE, "player profile set to %d", g_FileAutoSelect);
 	}
