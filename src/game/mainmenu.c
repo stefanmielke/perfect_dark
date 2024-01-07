@@ -45,6 +45,10 @@ struct menudialogdef g_CinemaMenuDialog;
 #ifndef PLATFORM_N64
 extern struct menudialogdef g_ExtendedMenuDialog;
 extern struct menudialogdef g_NetMenuDialog;
+extern MenuItemHandlerResult menuhandlerJoinGame(s32 operation, struct menuitem *item, union handlerdata *data);
+extern MenuItemHandlerResult menuhandlerJoinStart(s32 operation, struct menuitem *item, union handlerdata *data);
+extern MenuItemHandlerResult menuhandlerHostGame(s32 operation, struct menuitem *item, union handlerdata *data);
+extern MenuItemHandlerResult menuhandlerHostStart(s32 operation, struct menuitem *item, union handlerdata *data);
 #endif
 
 char *menuTextCurrentStageName(struct menuitem *item)
@@ -4881,6 +4885,17 @@ MenuDialogHandlerResult menudialogMainMenu(s32 operation, struct menudialogdef *
 			g_MissionConfig.iscoop = false;
 			g_MissionConfig.isanti = false;
 		}
+#ifndef PLATFORM_N64
+		if (g_NetJoinLatch) {
+			menuhandlerJoinGame(MENUOP_SET, NULL, NULL);
+			menuhandlerJoinStart(MENUOP_SET, NULL, NULL);
+			g_NetJoinLatch = false;
+		} else if (g_NetHostLatch) {
+			menuhandlerHostGame(MENUOP_SET, NULL, NULL);
+			menuhandlerHostStart(MENUOP_SET, NULL, NULL);
+			g_NetHostLatch = false;
+		}
+#endif
 		break;
 	}
 

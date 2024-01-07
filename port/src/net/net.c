@@ -30,6 +30,9 @@
 
 s32 g_NetMode = NETMODE_NONE;
 
+s32 g_NetHostLatch = false;
+s32 g_NetJoinLatch = false;
+
 u32 g_NetServerUpdateRate = 1;
 u32 g_NetServerInRate = 128 * 1024;
 u32 g_NetServerOutRate = 128 * 1024;
@@ -332,6 +335,26 @@ void netInit(void)
 	if (enet_initialize() < 0) {
 		sysLogPrintf(LOG_ERROR, "NET: could not init ENet, disabling networking");
 		return;
+	}
+
+	const s32 argmaxclients = sysArgGetInt("--maxclients", -1);
+	if (argmaxclients > 0) {
+		g_NetMaxClients = argmaxclients;
+	}
+
+	const s32 argport = sysArgGetInt("--port", -1);
+	if (argport > 0 && argport < 0x10000) {
+		g_NetServerPort = argport;
+	}
+
+	const char *argjoin = sysArgGetString("--connect");
+	if (argjoin) {
+		strncpy(g_NetLastJoinAddr, argjoin, sizeof(g_NetLastJoinAddr) - 1);
+		g_NetJoinLatch = true;
+	}
+
+	if (sysArgCheck("--host")) {
+		g_NetHostLatch = true;
 	}
 
 	g_NetInit = true;

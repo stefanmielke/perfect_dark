@@ -56,7 +56,7 @@ static char *menuhandlerHostPortValue(struct menuitem *item)
 	return tmp;
 }
 
-static MenuItemHandlerResult menuhandlerHostStart(s32 operation, struct menuitem *item, union handlerdata *data)
+MenuItemHandlerResult menuhandlerHostStart(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	if (operation == MENUOP_SET) {
 		if (netStartServer(g_NetMenuPort, g_NetMenuMaxPlayers) == 0) {
@@ -292,7 +292,7 @@ static MenuItemHandlerResult menuhandlerJoinAddress(s32 operation, struct menuit
 	return 0;
 }
 
-static MenuItemHandlerResult menuhandlerJoinStart(s32 operation, struct menuitem *item, union handlerdata *data)
+MenuItemHandlerResult menuhandlerJoinStart(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	if (operation == MENUOP_SET) {
 		if (netStartClient(g_NetJoinAddr) == 0) {
@@ -350,7 +350,7 @@ struct menudialogdef g_NetJoinMenuDialog = {
 
 /* main */
 
-static MenuItemHandlerResult menuhandlerHostGame(s32 operation, struct menuitem *item, union handlerdata *data)
+MenuItemHandlerResult menuhandlerHostGame(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	if (operation == MENUOP_SET) {
 		g_NetMenuPort = g_NetServerPort;
@@ -360,7 +360,7 @@ static MenuItemHandlerResult menuhandlerHostGame(s32 operation, struct menuitem 
 	return 0;
 }
 
-static MenuItemHandlerResult menuhandlerJoinGame(s32 operation, struct menuitem *item, union handlerdata *data)
+MenuItemHandlerResult menuhandlerJoinGame(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	if (operation == MENUOP_SET) {
 		if (g_NetJoinAddr[0] == '\0') {

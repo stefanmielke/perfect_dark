@@ -105,6 +105,9 @@ struct netclient {
 
 extern s32 g_NetMode;
 
+extern s32 g_NetJoinLatch;
+extern s32 g_NetHostLatch;
+
 // net frame, ticks at 60 fps, starts at 0 when the server is started
 extern u32 g_NetTick;
 extern u32 g_NetNextSyncId;
