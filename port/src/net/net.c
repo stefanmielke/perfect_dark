@@ -338,7 +338,7 @@ void netInit(void)
 	}
 
 	const s32 argmaxclients = sysArgGetInt("--maxclients", -1);
-	if (argmaxclients > 0) {
+	if (argmaxclients > 0 && argmaxclients <= NET_MAX_CLIENTS) {
 		g_NetMaxClients = argmaxclients;
 	}
 
