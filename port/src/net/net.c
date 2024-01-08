@@ -745,7 +745,7 @@ void netStartFrame(void)
 					if (cl) {
 						netServerEvDisconnect(cl);
 					} else {
-						sysLogPrintf(LOG_WARNING, "NET: disconnect from %s without attached client", netFormatPeerAddr(ev.peer));
+						sysLogPrintf(LOG_WARNING | LOGFLAG_NOCON, "NET: disconnect from %s without attached client", netFormatPeerAddr(ev.peer));
 						--g_NetNumClients;
 					}
 				}
@@ -764,7 +764,7 @@ void netStartFrame(void)
 							netbufReset(&cl->in);
 						}
 					} else if (!isClient) {
-						sysLogPrintf(LOG_WARNING, "NET: receive from %s without attached client", netFormatPeerAddr(ev.peer));
+						sysLogPrintf(LOG_WARNING | LOGFLAG_NOCON, "NET: receive from %s without attached client", netFormatPeerAddr(ev.peer));
 					}
 				}
 				enet_packet_dispose(ev.packet);
