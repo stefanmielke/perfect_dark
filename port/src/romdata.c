@@ -205,9 +205,9 @@ static inline void romdataLoadRom(void)
 		romdataWrongRomError("ROM size does not match: expected: %u, got: %u.", ROMDATA_ROM_SIZE, g_RomFileSize);
 	}
 
-	if (memcmp(g_RomFile + 0x3b, ROMDATA_ROM_ID, 4) || memcmp(g_RomFile + 0x20, ROMDATA_ROM_TITLE, sizeof(ROMDATA_ROM_TITLE) - 1)) {
-		romdataWrongRomError("ROM header does not match.");
-	}
+	//if (memcmp(g_RomFile + 0x3b, ROMDATA_ROM_ID, 4) || memcmp(g_RomFile + 0x20, ROMDATA_ROM_TITLE, sizeof(ROMDATA_ROM_TITLE) - 1)) {
+	//	romdataWrongRomError("ROM header does not match.");
+	//}
 
 	// inflate the compressed data segment since that's where some useful stuff is
 
